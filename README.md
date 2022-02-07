@@ -73,7 +73,7 @@ ob3.SNfromTime(10)
 dd = makeplots(ob3, 'SN')				
 ```
 <p align="middle">
- <img src="Examples/SN_plot.png" width="350" height="450" />
+ <img src="Examples/SN_plot.png" width="350"/>
 </p>
 
 ```python
@@ -86,7 +86,7 @@ dd = makeplots(ob4, 'Time')
 											
 ```
 <p align="middle">
- <img src="Examples/EXP_plot.png" width="350" height="450" />
+ <img src="Examples/EXP_plot.png" width="350"/>
 </p>
 
 Limitations
