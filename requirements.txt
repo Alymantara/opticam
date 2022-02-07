@@ -1,0 +1,6 @@
+numpy
+astropy
+synphot
+scipy
+pip==19.0.3
+wheel==0.33.1
