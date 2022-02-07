@@ -7,49 +7,51 @@ This package is used to calculate an exposure time based on a desired signal to 
 Import the four distinct objects inside OPTICAM:
 
 ```python
-   	from opticam import Sky, Target, Instrument, Observation
+from opticam import Sky, Target, Instrument, Observation
 ```
 
 ### Sky
 First, let's create the <strong>Sky</strong> conditions, where lunar phase can go from 0 (New moon) to 1 (Full moon). Seeing is in arcseconds:
 ```python
-   	sky = Sky(lunar_phase=0.5, seeing=1.5)
+sky = Sky(lunar_phase=0.5, seeing=1.5)
 ```
 
 ### Target
 Then, let's create our <strong>Target</strong> Object. First entry is the target's magnitude, second entry is a string that specifies the magnitude system of the input magnitude [vegamag/stmag/abmag], third entry is the band pass for entered magnitude (only Johnson filters are supported at the moment). Default object is a blackbody spectrum with a solar temperature T=5778 K. You can choose between a blackbody, a powerlaw F<sub>&lambda;</sub>&Proportional;&lambda;<sup>-index</sup>
 ```python
-   	star1 = Target(16.5, 'VEGAMAG', 'V', temp=5000)			#BlackBody T=5000 K
-	star2 = Target(20.1, 'stmag', 'B', index=4)				# PowerLaw F<sub>&lambda;</sub>, index = -4
+#BlackBody T=5000 K
+star1 = Target(16.5, 'VEGAMAG', 'V', temp=5000)			
+# PowerLaw F<sub>&lambda;</sub>, index = -4
+star2 = Target(20.1, 'stmag', 'B', index=4)				
 ```
 
 You can also upload a custom SED
 ```python
-	import numpy as np
+import numpy as np
 
-	# custom_sed.txt has two columns: 1) Wavelenght [AA]; 2) Flux [erg/s/cm^2/AA]
-	custom_sed = np.loadtxt('custom_sed.txt')				
-	star3 = Target(13.8, 'abmag', 'B', sed=custom_sed)	
+# custom_sed.txt has two columns: 1) Wavelenght [AA]; 2) Flux [erg/s/cm^2/AA]
+custom_sed = np.loadtxt('custom_sed.txt')				
+star3 = Target(13.8, 'abmag', 'B', sed=custom_sed)	
 ```
 
 ### Instrument
 Now, let's load the instrument. Only Opticam is supported at the moment.
 ```python
-	inst = Instrument('Opticam')
+inst = Instrument('Opticam')
 ```
 
 ### Observation
 We can now combine all three objects to generate and observation.
 ```python
-	obs = Observation(star, sky, inst)
+obs = Observation(star, sky, inst)
 ```
 Now, we can use this object to generate either the SNR for a given exposure time or viceversa:
 ```python
-	snr_1 = obs.SNfromTime(200) #value in seconds
-	time_1 = obs.TimefromSN(50) #value in S/N ratio
+snr_1 = obs.SNfromTime(200) #value in seconds
+time_1 = obs.TimefromSN(50) #value in S/N ratio
 
-	print(snr_1)
-	print(time_1)
+print(snr_1)
+print(time_1)
 ```
 This will generate for every filter in OPTICam the desired SNR (assuming a unique exposure time for all filters), or the exposure time required in each filter to achieve the desired SNR.
 ```
@@ -61,12 +63,14 @@ This will generate for every filter in OPTICam the desired SNR (assuming a uniqu
 ##  Section 2:  Plotting
 A more convenient way of using this calculator is to export the information as a plot. 
 ```python
-	from opticam import makeplots
+from opticam import makeplots
 
-	ob3 = Observation(star, sky, inst)
-	ob3.SNfromTime(10)   					# 10 second integrations
+ob3 = Observation(star, sky, inst)
+# 10 second integrations
+ob3.SNfromTime(10)   					
 
-	dd = makeplots(ob3, 'SN')				# 'SN', will create a SNR plot for the 10 sec exposures
+# 'SN', will create a SNR plot for the 10 sec exposures
+dd = makeplots(ob3, 'SN')				
 ```
 <p align="middle">
  <img src="Examples/SN_plot.png" width="350" height="450" />
@@ -74,10 +78,12 @@ A more convenient way of using this calculator is to export the information as a
 
 ```python
 ob4 = Observation(star, sky, inst)
+# SNR = 50
 ob4.TimefromSN(50)
 
-dd = makeplots(ob4, 'Time')					# 'Time', will create a Exposure time plot for the 
-											# required SNR=50
+# 'Time', will create a Exposure time plot for SNR=50
+dd = makeplots(ob4, 'Time')					
+											
 ```
 <p align="middle">
  <img src="Examples/EXP_plot.png" width="350" height="450" />
