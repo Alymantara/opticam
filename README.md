@@ -137,6 +137,6 @@ These commands will produce a final file with the photometry for this target; 'B
 </p>
 as well as diagnostic plots:
 <p align="middle">
- <img src="Examples/BL_Cam_r_rms_mag.png" width="450"/>
-  <img src="Examples/BL_Cam_r_SNR_andor.png" width="450"/>
+ <img src="Examples/BL_Cam_r_rms_mag.png" width="350"/>
+  <img src="Examples/BL_Cam_r_SNR_andor.png" width="350"/>
 </p>
