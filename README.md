@@ -133,7 +133,7 @@ photo.ccd_noise()
 ```
 These commands will produce a final file with the photometry for this target; 'BL_Cam_r_lc_21.csv'. It will also output plots of the light curve:
 <p align="middle">
- <img src="Examples/BL_Cam_r_lc.png" width="450"/>
+ <img src="Examples/BL_Cam_r_lc.png" width="650"/>
 </p>
 as well as diagnostic plots:
 <p align="middle">
