@@ -15,7 +15,52 @@ from astropy.time import Time
 import astroalign as aa
 
 class Reduction:
+    '''
+    Object that performs the aperture photometry
+    with SExtractor and creates a list of stars.
 
+    The `Reduction` class is used to compute the 
+    differential photometry over a particular dataset
+
+    Parameters
+    ----------
+    workdir : str, optional
+        Working directory where the data and catalogues are stored
+
+    savedir : str, optional
+        Directory of all the stars catalogue as measured by SExtractor
+
+    name : str, optional
+        Name of the target
+
+    rule : str, optional
+        File rule to be used when collecting all the fits files. 
+        Default '*.fits'
+
+    Attributes
+    ----------
+
+    aper_size : float
+        Aperture size used in the 
+
+    airmass : float
+        The airmass. This parameter is related to the altitude of the target.
+
+    raw_data : data frame
+        Dataframe that contains all the photometry from all stars in the field.
+
+    all_stars : int, arrray
+        Unique identifier of each star in the field
+
+    epochs : int, array
+        Array of epochs/images
+
+    num_epochs : int
+        Total number of epochs/images
+
+    comp_factor : float, array
+        Transmission factors at each epoch
+    '''
 
     def __init__(self,workdir=None,rawdata = None,savedir=None,
                 name=None,rule='*.fits'):
@@ -57,6 +102,11 @@ class Reduction:
 
 
     def sextractor(self):
+        """
+        Routine that uses SExtractor to perform
+        aperture photometry and create a catalogue of 
+        stars for each file.
+        """
         sext_def= self._ROOT+'/sextractor_defaults/*'
         os.system('cp '+sext_def+' '+self.workdir)
         if not os.path.isdir(self.workdir+self.savedir):
@@ -141,7 +191,11 @@ class Reduction:
             ' position is: X= {:4.0f}, Y={:4.0f}'.format(self.tar_x,self.tar_y))
 
     def photometry(self):
-
+        """
+        Creates a single output file from all the catalogues. 
+        Cross-matches the positions of each catalogue and assigns
+        every star its unique identifier.
+        """
         self.photo_file = self.name+'_photo'
         apass = pd.read_csv(self.workdir+self.name+'_ref_stars.csv',
             comment="#")
@@ -155,7 +209,7 @@ class Reduction:
         save_target = True
 
         flux_id = 'MAG_APER'
-        err_id = 'MAGERR_APER'
+        err_id  = 'MAGERR_APER'
 
         
         PIX_EDGE = 30
