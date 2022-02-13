@@ -1,9 +1,11 @@
-OPTICAM Exposure Time Calculator
+OPTICAM 
 ======
-This package is used to calculate an exposure time based on a desired signal to noise ratio for OPTICAM `<https://www.southampton.ac.uk/opticam/>`. This code has been modified and adapted specifically for OPTICAM: The original code can be downloaded here: `here <https://apoexposuretimecalculator.github.io/APOExptime/>`_.
+Suite of software to 
 
 
-##  Section 1:  Usage
+##  Section 1:  Exposure Time Calculator
+This package is used to calculate an exposure time based on a desired signal to noise ratio for OPTICAM `<https://www.southampton.ac.uk/opticam/>`. This code has been modified and adapted specifically for OPTICAM: The original code can be downloaded here: `here <https://apoexposuretimecalculator.github.io/APOExptime/>`.
+
 Import the four distinct objects inside OPTICAM:
 
 ```python
@@ -60,7 +62,7 @@ This will generate for every filter in OPTICam the desired SNR (assuming a uniqu
 [[387.1788766085068, 'uprime_filter'], [25.201236621119214, 'gprime_filter'], [15.179251054637014, 'rprime_filter'], [14.98133450353503, 'iprime_filter'], [38.189538299358965, 'zprime_filter']]
 ```
 
-##  Section 2:  Plotting
+###  Plotting
 A more convenient way of using this calculator is to export the information as a plot. 
 ```python
 from opticam import makeplots
@@ -89,7 +91,52 @@ dd = makeplots(ob4, 'Time')
  <img src="Examples/EXP_plot.png" width="350"/>
 </p>
 
-Limitations
+### Limitations
 ------------
 This package is  only for the 2.1m telescope at the Observatorio Astronomico Nacional.
 The current supported instruments are: OPTICam
+
+## Section 2 - Quick Aperture Photometry
+You need to set the all the raw/reduced files in a folder (e.g., 'bl_cam') inside your working directory (e.g., './'). Since we will extract a single camera at a time, 
+
+```python
+import opticam
+
+datadir = 'bl_cam/'
+catdir = 'bl_cam_cat/'
+name = 'BL_Cam_r'                   
+```
+Then import the <strong>Reduction</strong> object and set all the keywords. You need to do the reduction one camera at a time! Here you can select the images for the camera 2 --> 'C2'.
+
+```python
+op = opticam.Reduction(rawdata=datadir,savedir=catdir,
+                        name=name,rule='C2*.fits')
+op.sextractor()         # Perform aperture photometry
+op.creat_ref_list()     # Make master star list & FoV image
+op.photometry()         # Cross-match between all images
+```
+After using SExtractor to create all the catalogues, the program will create a master list (e.g., 'BL_Cam_r_ref_stars.csv') with unique identifiers for all the stars in the field (based on the first image, it can be defined as well).  You can check the id of the target of interest in a image (as seen below) of the field with all the id numbers of the stars. In this case BL Cam has the identifier 20.
+In the end, the 'op.photometry' will create a singel 'csv' and 'pkl' file, containing all the photometry from all the stars. 
+<p align="middle">
+ <img src="Examples/BL_Cam_r_fov.png" width="450"/>
+</p>
+
+After checking the number for our target, we can recover the differential photomety for this particular target.
+```python
+target = 21
+
+photo = opticam.Analysis(catalogue=catdir,name=name)
+photo.differential_photo(target=target,ignore=None)
+photo.rms_mag(target=target)
+photo.lightcurve(std=True)
+photo.ccd_noise()
+```
+These commands will produce a final file with the photometry for this target; 'BL_Cam_r_lc_21.csv'. It will also output plots of the light curve:
+<p align="middle">
+ <img src="Examples/BL_Cam_r_lc.png" width="450"/>
+</p>
+as well as diagnostic plots:
+<p align="middle">
+ <img src="Examples/BL_Cam_r_rms_mag.png" width="450"/>
+  <img src="Examples/BL_Cam_r_SNR_andor.png" width="450"/>
+</p>
