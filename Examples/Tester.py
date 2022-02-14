@@ -1,10 +1,10 @@
 """Script to test APO Exposure timer calc"""
 
-from APOExptime import Sky, Target, Instrument, Observation, makeplots
+from opticam import Sky, Target, Instrument, Observation, makeplots
 
 sky = Sky(lunar_phase=0, seeing=1)
 star = Target(21, 'VEGAMAG', [5000, 6000], temp=30000)
-inst1 = Instrument('Arctic')
+inst1 = Instrument('Opticam')
 
 
 ob1 = Observation(star, sky, inst1)

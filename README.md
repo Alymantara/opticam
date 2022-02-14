@@ -1,7 +1,20 @@
 OPTICAM 
 ======
-Suite of software to 
+Suite of software to prepare and analyse data from OPTICAM
 
+
+## Prerequisites
+    - numpy
+    - pandas
+    - matplotlib
+    - astropy
+    - astroalign
+    - aplpy
+    - synphot
+    - lmfit
+    - yaml
+
+You also need a working version of SExtractor in your machine to perform the aperture photometry.
 
 ##  Section 1:  Exposure Time Calculator
 This package is used to calculate an exposure time based on a desired signal to noise ratio for OPTICAM `<https://www.southampton.ac.uk/opticam/>`. This code has been modified and adapted specifically for OPTICAM: The original code can be downloaded here: `here <https://apoexposuretimecalculator.github.io/APOExptime/>`.
@@ -115,7 +128,7 @@ op.sextractor()         # Perform aperture photometry
 op.creat_ref_list()     # Make master star list & FoV image
 op.photometry()         # Cross-match between all images
 ```
-After using SExtractor to create all the catalogues, the program will create a master list (e.g., 'BL_Cam_r_ref_stars.csv') with unique identifiers for all the stars in the field (based on the first image, it can be defined as well).  You can check the id of the target of interest in a image (as seen below) of the field with all the id numbers of the stars. In this case BL Cam has the identifier 20.
+After using SExtractor to create all the catalogues, the program will create a master list (e.g., 'BL_Cam_r_ref_stars.csv') with unique identifiers for all the stars in the field (based on the first image, it can be defined as well).  You can check the id of the target of interest in a image (as seen below) of the field with all the id numbers of the stars. In this case BL Cam has the identifier 21.
 In the end, the 'op.photometry' will create a singel 'csv' and 'pkl' file, containing all the photometry from all the stars. 
 <p align="middle">
  <img src="Examples/BL_Cam_r_fov.png" width="450"/>
