@@ -3,14 +3,19 @@ filter/dispersion_Num: 5
 filters/dispersions:
 - - uprime_filter.data
   - Opticam_qe.data
+  - Opticam_cameff.data
 - - gprime_filter.data
   - Opticam_qe.data
+  - Opticam_cameff.data
 - - rprime_filter.data
   - Opticam_qe.data
+  - Opticam_cameff.data
 - - iprime_filter.data
   - Opticam_qe.data
+  - Opticam_cameff.data
 - - zprime_filter.data
   - Opticam_qe.data
+  - Opticam_cameff.data
 gain: 1
 isImager: 1
 pix_size[10^-6m]: 6.5

@@ -371,7 +371,7 @@ class Observation:
         sky_prime_dlam = []
         for i, row in enumerate(self.names):
             s_integrand = InterpolationMultiplier(
-                [sky, self.q_efficiencies[i], self.skyTransmission, self.InstTransmission[i]],
+                [sky, self.q_efficiencies[i], self.skyTransmission, self.InstTransmission[i] self.cameras[i]],
                 self.ranges[i])
 
             sky_prime_dlam.append([self.telescope_area * self.seeing_area[i] * s_integrand[1], s_integrand[0]])
@@ -395,7 +395,7 @@ class Observation:
         s_prime_dlam = []
         for i, row in enumerate(self.names):
             s_integrand = InterpolationMultiplier(
-                [source, self.q_efficiencies[i], self.skyTransmission, self.InstTransmission[i]],
+                [source, self.q_efficiencies[i], self.skyTransmission, self.InstTransmission[i], self.cameras[i]],
                 self.ranges[i])
 
             s_prime_dlam.append([self.telescope_area * (1 / (h * c)) * s_integrand[1] * s_integrand[0], s_integrand[0]])
@@ -521,6 +521,7 @@ class Instrument:
 
         names = []
         efficiencies = []
+        cameras = []
         transmissions = []
         lambda_range = []
         Npix_lam = []
@@ -529,9 +530,12 @@ class Instrument:
             names.append(row[0].split('.data')[0])
             transmission = ascii.read(get_data(Telescope_name + '/' + Instr_name + "/" + row[0]))
             q_efficiency = ascii.read(get_data(Telescope_name + '/' + Instr_name + "/" + row[1]))
+            cam_efficiency = ascii.read(get_data(Telescope_name + '/' + Instr_name + "/" + row[2]))
 
             efficiencies.append(
                 interpolate.InterpolatedUnivariateSpline(q_efficiency['col1'] * 10, q_efficiency["col2"] / 100))
+            cameras.append(
+                interpolate.InterpolatedUnivariateSpline(cam_efficiency['col1'] * 10, cam_efficiency["col2"]))
             ff = np.diff(transmission['col1'].data) > 0
             transmissions.append(
                 interpolate.InterpolatedUnivariateSpline(transmission['col1'].data, transmission["col2"].data / 100))
@@ -544,6 +548,7 @@ class Instrument:
                                                                          (dispersion['col1'] ** (-1))))
 
             self.transmissions = transmissions
+            self.cameras = cameras
             self.names = names
             self.efficiencies = efficiencies
             self.range = lambda_range
