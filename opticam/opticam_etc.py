@@ -296,6 +296,7 @@ class Observation:
         # telescope_transm = telescope.transmission
         self.q_efficiencies = instrument.efficiencies
         self.InstTransmission = instrument.transmissions
+        self.cameras = instrument.cameras
         self.telescope_area = (instrument.Telescope_rad ** 2) * np.pi
         self.source = target.F_lambda
         self.skySED = sky.sky_emission
@@ -371,7 +372,7 @@ class Observation:
         sky_prime_dlam = []
         for i, row in enumerate(self.names):
             s_integrand = InterpolationMultiplier(
-                [sky, self.q_efficiencies[i], self.skyTransmission, self.InstTransmission[i] self.cameras[i]],
+                [sky, self.q_efficiencies[i], self.skyTransmission, self.InstTransmission[i], self.cameras[i]],
                 self.ranges[i])
 
             sky_prime_dlam.append([self.telescope_area * self.seeing_area[i] * s_integrand[1], s_integrand[0]])
