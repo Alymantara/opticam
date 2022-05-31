@@ -131,7 +131,7 @@ class Reduction:
                 except:
                     gain = 1.0
 
-                sex_out = "sex temp_sextractor_file.fits  -c default.sex -CATALOG_NAME "+ \
+                sex_out = "sextractor temp_sextractor_file.fits  -c default.sex -CATALOG_NAME "+ \
                           fln.split(".fits")[0]+"_cat.fits"+" -GAIN "+str(gain)
                 #print(sex_out)
                 os.system(sex_out)
