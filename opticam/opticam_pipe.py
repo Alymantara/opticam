@@ -286,7 +286,10 @@ class Reduction:
                 telid = flname.split("-")[0][-5:]
                 pixscale = fits.getval(flname,"PIXSIZE",0)
                 pixscale = 0.14
-                PSF_FWHM = np.median(fits.getdata(cat_flname,0)['FWHM_IMAGE'])
+                #creating a mask to elimitate 0 FWHM data
+                # I am guessing you want to get the FWHM estimated with sextractor
+                msk = np.argwhere(fits.getdata(cat_flname).FWHM_IMAGE >0 ).T[0]
+                PSF_FWHM = np.median(fits.getdata(cat_flname).FWHM_IMAGE[msk])
                 try:
                     seeing = fits.getval(flname,"L1FWHM",0)
                 except:
@@ -294,7 +297,7 @@ class Reduction:
                 if seeing == "UNKNOWN": seeing = PSF_FWHM*pixscale
                 if vrb: print("Seeing = {:7.3f} arcsec".format(seeing))
                 if vrb: print("PSF FWHM = {:7.3f} arcsec".format(PSF_FWHM*pixscale))
-                data = fits.getdata(cat_flname,0)
+                data = fits.getdata(cat_flname)
 
 
                 #### Align images #####
