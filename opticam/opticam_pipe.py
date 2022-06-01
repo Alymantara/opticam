@@ -307,9 +307,13 @@ class Reduction:
                     c_ref = np.array([data['X_IMAGE'],data['Y_IMAGE']]).T
                 else:
                     c_tar = np.array([data['X_IMAGE'],data['Y_IMAGE']]).T
-                    p, (pos_img, pos_img_rot) = aa.find_transform(c_ref, c_tar)
-                    d_x,d_y = p.translation[0],p.translation[1]
-                    print("Translation: (x, y) = ({:.2f}, {:.2f})".format(*p.translation))
+                    try:
+                        p, (pos_img, pos_img_rot) = aa.find_transform(c_ref, c_tar)
+                        d_x,d_y = p.translation[0],p.translation[1]
+                        print("Translation: (x, y) = ({:.2f}, {:.2f})".format(*p.translation))
+                    except: 
+                        print('WARNING! >> List of matching triangles exhausted before an acceptable transformation was found?!?!')
+                    
 
                 coo_image = SkyCoord((data['X_IMAGE']-d_x)/1000*u.deg, 
                                      (data['Y_IMAGE']-d_y)/1000*u.deg)
