@@ -229,7 +229,8 @@ class Reduction:
         fac_col = 0.0
         MAG_LIM_INIT = MAG_LIM
 
-        lco_log = Path(self.workdir+self.photo_file)
+        lco_log = Path(self.photo_file+'.csv')
+        print(lco_log)
 
         if lco_log.exists():
             print('Photometry file already exists')
@@ -255,7 +256,7 @@ class Reduction:
                  }
             lco = pd.DataFrame(data=d)
             sta = pd.DataFrame(data=dd)
-            df2 = {}
+            #df2 = {}
             df3 = {}
             id3 = 0
             check_flag = False
@@ -273,8 +274,9 @@ class Reduction:
                 filt = fits.getval(flname,"FILTER",0)
                 obj = fits.getval(flname,"OBJECT",0)
                 exptime = fits.getval(flname,"EXPOSURE",0)
-                mjd_t = fits.getval(flname,"DATE-OBS",0)
-                mjd = Time(mjd_t, format='isot', scale='ut1').mjd
+                mjd_t = fits.getval(flname,"GPSTIME",0)[:-5]
+                mjd_t = mjd_t.replace(' ', 'T')
+                mjd = Time(mjd_t, format='fits', scale='utc').mjd
 
                 #camera = fits.getval(flname,"DATE-OBS",0)
                 airmass = fits.getval(flname,"AIRMASS",0)
@@ -373,7 +375,7 @@ class Reduction:
                 if vrb: print('%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%')
                 #stop
 
-        lco = pd.DataFrame.from_dict(df2,"index")
+        #lco = pd.DataFrame.from_dict(df2,"index")
         sta = pd.DataFrame.from_dict(df3,"index")
         ### Now, let's put all in one log.
         #if save_output & save_target:
