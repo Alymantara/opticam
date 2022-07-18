@@ -82,6 +82,7 @@ class Analysis:
         self.raw_data = pd.read_pickle(self.workdir+self.name+'_photo.pkl') #.sort_values("MJD")
 
         self.all_stars = np.unique(self.raw_data.id_apass)
+        print(self.raw_data)
 
         self.phot_floor = 1.00
         self.phot_factr = 1.00
@@ -108,6 +109,9 @@ class Analysis:
 
         """
         mask = np.zeros(self.all_stars.size,dtype=bool)
+        print(mask)
+        print(self.all_stars)
+        print(target)
         self.used = np.zeros(self.all_stars.size,dtype=bool)
         if target is not None:
             mask += self.all_stars == target
@@ -115,8 +119,10 @@ class Analysis:
             for i in ignore:
                 mask += self.all_stars == i
         mask = ~mask
+        print(mask)
 
         self.mask = mask
+        print(self.mask)
 
         #### Only in those that the target was also detected
         self.epochs_target = np.unique(self.raw_data.epoch[self.raw_data.id_apass == target])
@@ -124,6 +130,7 @@ class Analysis:
         print('Target epochs: ',self.epochs_target.size)
         self.stds_used = 0
         for jj,i in enumerate(self.all_stars[self.mask]):
+            
             ss = (self.raw_data.id_apass == i) 
             #np.equal(self.raw_data.epoch[ss], epochs_target).nonzero()
             #print(i,ss.sum(),self.epochs_target.size)
@@ -131,7 +138,7 @@ class Analysis:
 
                 xy, x_ind, y_ind = np.intersect1d(self.epochs_target,
                                  self.raw_data.epoch[ss].values, return_indices=True)
- 
+
                 if np.array_equal(self.raw_data.epoch[ss].values[y_ind],self.epochs_target):
                     tmp = np.stack(10**(self.raw_data.mag_aper[ss]/-2.5),axis=0)[:,self.aper_size]
                     if self.stds_used == 0: comp = tmp[y_ind]
@@ -143,6 +150,7 @@ class Analysis:
         
         # Make the photometry of the target
         ss = (self.raw_data.id_apass == target)
+        
 
         target_mag = np.stack(10**(self.raw_data.mag_aper[ss]/-2.5),axis=0)[:,self.aper_size]
         self.time = self.raw_data.MJD[ss].values
