@@ -83,6 +83,7 @@ class Reduction:
             self.name = name
         
         self.rule = rule
+        self.marker = '_'+rule[:-6]
 
         self.flns = self.get_files(self.rule)
         #print("Loading")
@@ -150,11 +151,9 @@ class Reduction:
         number :: Default. First image of the list
         '''
         fln = self.flns[number].split('/')[-1]
-
-        print(fln)
         fl1 = self.workdir+self.savedir+fln.split(".fits")[0]+"_cat.fits"
         fl2 = self.workdir+self.rawdata+fln
-        
+        print(fl1)
 
         data = fits.getdata(fl1)
 
@@ -171,12 +170,12 @@ class Reduction:
         #gc.show_circles(coo_image.ra.deg[ss][pp], coo_image.dec.deg[ss][pp], 
         plt.show()
 
-        gc.savefig(self.workdir+self.name+'_fov.pdf')
+        gc.savefig(self.workdir+self.name+self.marker+'_fov.pdf')
 
         df = pd.DataFrame(data=np.array([data['NUMBER'],
                                 data['X_IMAGE'],
                                 data['Y_IMAGE']]).T,columns=["id", "x","y"])
-        df.to_csv(self.workdir+self.name+'_ref_stars.csv',  index_label=False,index=False)
+        df.to_csv(self.workdir+self.name+self.marker+'_ref_stars.csv',  index_label=False,index=False)
 
         self.ref_stars = df
 
@@ -196,8 +195,8 @@ class Reduction:
         Cross-matches the positions of each catalogue and assigns
         every star its unique identifier.
         """
-        self.photo_file = self.name+'_photo'
-        apass = pd.read_csv(self.workdir+self.name+'_ref_stars.csv',
+        self.photo_file = self.name+self.marker+'_photo'
+        apass = pd.read_csv(self.workdir+self.name+self.marker+'_ref_stars.csv',
             comment="#")
         apass.set_index('id')
 
@@ -256,12 +255,12 @@ class Reduction:
                  }
             lco = pd.DataFrame(data=d)
             sta = pd.DataFrame(data=dd)
-            #df2 = {}
+            df2 = {}
             df3 = {}
             id3 = 0
             check_flag = False
         print("OPTICAM - Light curve generator")
-
+        
         for i,flname in enumerate(self.flns[:]):
             cat_flname = self.workdir+self.savedir+flname.split('/')[-1][:-5]+'_cat.fits'
             print(flname,cat_flname)
@@ -376,12 +375,12 @@ class Reduction:
                 #stop
 
         #lco = pd.DataFrame.from_dict(df2,"index")
-        sta = pd.DataFrame.from_dict(df3,"index")
+                sta = pd.DataFrame.from_dict(df3,"index")
         ### Now, let's put all in one log.
         #if save_output & save_target:
         #    lco.to_csv(self.photo_file+".csv")
         #    lco.to_pickle(self.photo_file+".pkl")
-        if save_output & save_standards:
-            sta.to_csv(self.photo_file+".csv")
-            sta.to_pickle(self.photo_file+".pkl")
+                if save_output & save_standards:
+                    sta.to_csv(self.photo_file+".csv")
+                    sta.to_pickle(self.photo_file+".pkl")
 

@@ -62,7 +62,7 @@ class Analysis:
         Transmission factors at each epoch
     '''
 
-    def __init__(self,workdir=None,catalogue = None,name=None):
+    def __init__(self,workdir=None,catalogue = None,name=None,rule = None):
 
         if workdir is None: 
             self.workdir = './'
@@ -77,12 +77,12 @@ class Analysis:
             self.name = 'astro'
         else:
             self.name = name
-
+        self.marker = '_'+rule[:-6]
         self.aper_size = 5
-        self.raw_data = pd.read_pickle(self.workdir+self.name+'_photo.pkl') #.sort_values("MJD")
+        self.raw_data = pd.read_pickle(self.workdir+self.name+self.marker+'_photo.pkl') #.sort_values("MJD")
 
         self.all_stars = np.unique(self.raw_data.id_apass)
-        print(self.raw_data)
+
 
         self.phot_floor = 1.00
         self.phot_factr = 1.00
@@ -109,9 +109,6 @@ class Analysis:
 
         """
         mask = np.zeros(self.all_stars.size,dtype=bool)
-        print(mask)
-        print(self.all_stars)
-        print(target)
         self.used = np.zeros(self.all_stars.size,dtype=bool)
         if target is not None:
             mask += self.all_stars == target
@@ -119,10 +116,10 @@ class Analysis:
             for i in ignore:
                 mask += self.all_stars == i
         mask = ~mask
-        print(mask)
+        
 
         self.mask = mask
-        print(self.mask)
+        
 
         #### Only in those that the target was also detected
         self.epochs_target = np.unique(self.raw_data.epoch[self.raw_data.id_apass == target])
@@ -150,7 +147,7 @@ class Analysis:
         
         # Make the photometry of the target
         ss = (self.raw_data.id_apass == target)
-        
+
 
         target_mag = np.stack(10**(self.raw_data.mag_aper[ss]/-2.5),axis=0)[:,self.aper_size]
         self.time = self.raw_data.MJD[ss].values
@@ -161,7 +158,7 @@ class Analysis:
             df = pd.DataFrame(data=np.array([self.time,
                                     self.mag,
                                     self.err]).T,columns=["mjd", "mag","err"])
-            df.to_csv(self.workdir+self.name+'_lc_'+str(target).zfill(2)+'.csv',  index_label=False,index=False)
+            df.to_csv(self.workdir+self.name+self.marker+'_lc_'+str(target).zfill(2)+'.csv',  index_label=False,index=False)
 
 
 
@@ -271,11 +268,11 @@ class Analysis:
         plt.xlabel('Median Magnitude')
         lg= plt.legend()
         plt.tight_layout()
-        plt.savefig(self.name+'_rms_mag.pdf')
+        plt.savefig(self.name+self.marker+'_rms_mag.pdf')
 
-        datos = pd.read_csv(self.workdir+self.name+'_lc_'+str(target).zfill(2)+'.csv')
+        datos = pd.read_csv(self.workdir+self.name+self.marker+'_lc_'+str(target).zfill(2)+'.csv')
         datos['err2'] = np.sqrt((self.err*self.phot_factr)**2 + (self.phot_floor)**2) 
-        datos.to_csv(self.workdir+self.name+'_lc_'+str(target).zfill(2)+'.csv',
+        datos.to_csv(self.workdir+self.name+self.marker+'_lc_'+str(target).zfill(2)+'.csv',
                      index_label=False,index=False)
 
     def lightcurve(self,comp=None,std = True):
@@ -339,7 +336,7 @@ class Analysis:
         ax1.set_ylabel(r'$\Delta$m')
         ax2.set_ylabel(r'$\Delta$m')
         plt.tight_layout()
-        plt.savefig(self.name+'_lc.pdf')
+        plt.savefig(self.name+self.marker+'_lc.pdf')
 
     def ccd_noise(self,image=0,aper=5):
         #aper+=4
@@ -422,7 +419,7 @@ class Analysis:
         plt.xlabel('-2.5 log(Count rate)')
         plt.ylabel(r'$\sigma_{SExt}$ / $\sigma_{theory}$')
         plt.tight_layout(h_pad=0)
-        plt.savefig(self.name+'_SNR_andor.pdf')
+        plt.savefig(self.name+self.marker+'_SNR_andor.pdf')
 
 def snr(rate,bkg,time,npix,rn,gain,dark=0.0,binning=1):
     source = rate * time
