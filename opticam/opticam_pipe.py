@@ -87,6 +87,7 @@ class Reduction:
 
         self.flns = self.get_files(self.rule)
         #print("Loading")
+
         self._ROOT = os.path.abspath(os.path.dirname(__file__))
 
     def get_files(self,rule):
@@ -201,7 +202,6 @@ class Reduction:
         apass.set_index('id')
 
         vrb = True #verbose, Default=True
-        plots = False
         save_output = True
 
         save_standards = True
@@ -225,7 +225,7 @@ class Reduction:
         coo_apass = SkyCoord(apass['x']/1000.*u.deg, apass['y']/1000*u.deg)
 
         num_flns = len(self.flns)
-        fac_col = 0.0
+
         MAG_LIM_INIT = MAG_LIM
 
         lco_log = Path(self.photo_file+'.csv')
@@ -233,11 +233,11 @@ class Reduction:
 
         if lco_log.exists():
             print('Photometry file already exists')
-            lco = pd.read_csv(lco_log)
+            #lco = pd.read_csv(lco_log)
             check_flag = True
         else:
             #"Object","Filter","MJD","Flux","Error"
-            d = {'flname': [], 'Object': [],'Filter': [],'MJD': [],
+            '''d = {'flname': [], 'Object': [],'Filter': [],'MJD': [],
                  'zp_mag': [],'zp_err': [],
                  'mag_aper': [],'err_aper': [],
                  'zp0_fit': [],'zp0_err': [],
@@ -247,15 +247,14 @@ class Reduction:
                  'skymag': [],'telid': [],"psf_fwhm": [],
                  'm_fit': [],'b_fit': [],
                  'X': [],'Y': [],
-                 'corrects':[]}
-            lco = pd.DataFrame(data=d)
+                 'corrects':[]}'''
 
             dd = {'flname': [], 'id_apass': [],'Filter': [],'MJD': [],
                  'mag_aper': [],'err_aper': []
                  }
-            lco = pd.DataFrame(data=d)
+            #lco = pd.DataFrame(data=d)
             sta = pd.DataFrame(data=dd)
-            df2 = {}
+            #df2 = {}
             df3 = {}
             id3 = 0
             check_flag = False
@@ -285,7 +284,7 @@ class Reduction:
                 observatory = fits.getval(flname,"OBSERVAT",0)
                 telid = fits.getval(flname,"ORIGIN",0)
                 telid = flname.split("-")[0][-5:]
-                pixscale = fits.getval(flname,"PIXSIZE",0)
+                #pixscale = fits.getval(flname,"PIXSIZE",0)
                 pixscale = 0.14
                 #creating a mask to elimitate 0 FWHM data
                 # I am guessing you want to get the FWHM estimated with sextractor
@@ -336,6 +335,21 @@ class Reduction:
                 inst_mag = data[flux_id] + 2.5 * np.log10(exptime)
                 inst_err = data[err_id]
 
+                
+                
+                '''
+The plan is to have the program do both variable apperture photometry and fixed apperture photometry. The fixed apperture is chosen by using:
+                sizes = [3,5,8,11,13,15,18,21,24,27,30,33]
+                blur = int(np.ceil(2*PSF_FHWM))
+                for i in np.range(len(inst_mag)):
+                    if sizes[-1-i] == blur or sizes[-1-i]-blur == 1 or sizes[-1-i]-blur == 2:
+                        aper_size = sizes[-1-i]
+                else:
+                    print('Could not find appropriate fixed apperture please set ')
+                    interupt
+Variable photometry default is ISOCOR but the plan is to have 2 optional parameters that the user can change in order to set both a different photomery method (ISO, AUTO, BEST, APER(aka fixed then the size needs to be set), PETRO) and the second one fixes the apperture to the inputed pixel size.
+                '''
+                ###We are getting the wrong magnitude here if we have an extended object because the apperture size is hard coded in on line 220. To change this we will need to change the photometry method that sextractor 
                 pp = np.isfinite(inst_mag[:,aper_size][ss]) & \
                      (data['X_IMAGE'][ss] > PIX_EDGE ) & \
                      (data['X_IMAGE'][ss] < naxis1 -PIX_EDGE)  & \
