@@ -112,7 +112,7 @@ class Reduction:
         sext_def= self._ROOT+'/sextractor_defaults/*'
         os.system('cp '+sext_def+' '+self.workdir)
         if not os.path.isdir(self.workdir+self.savedir):
-            os.system('mkdir '+self.workdir+self.savedir)
+            os.system('mkdir -p '+self.workdir+self.savedir)
 
         for i,fln in enumerate(self.flns[:]):
             exists = os.path.isfile(self.workdir+self.savedir+ \
@@ -151,6 +151,8 @@ class Reduction:
 
         number :: Default. First image of the list
         '''
+        if not os.path.isdir(self.workdir+self.name+'_files/'):
+            os.system('mkdir '+self.workdir+self.name+'_files/')
         fln = self.flns[number].split('/')[-1]
         fl1 = self.workdir+self.savedir+fln.split(".fits")[0]+"_cat.fits"
         fl2 = self.workdir+self.rawdata+fln
@@ -171,12 +173,12 @@ class Reduction:
         #gc.show_circles(coo_image.ra.deg[ss][pp], coo_image.dec.deg[ss][pp], 
         plt.show()
 
-        gc.savefig(self.workdir+self.name+self.marker+'_fov.pdf')
+        gc.savefig(self.workdir+self.name+'_files/'+self.name+self.marker+'_fov.pdf')
 
         df = pd.DataFrame(data=np.array([data['NUMBER'],
                                 data['X_IMAGE'],
                                 data['Y_IMAGE']]).T,columns=["id", "x","y"])
-        df.to_csv(self.workdir+self.name+self.marker+'_ref_stars.csv',  index_label=False,index=False)
+        df.to_csv(self.workdir+self.name+'_files/'+self.name+self.marker+'_ref_stars.csv',  index_label=False,index=False)
 
         self.ref_stars = df
 
@@ -197,7 +199,7 @@ class Reduction:
         every star its unique identifier.
         """
         self.photo_file = self.name+self.marker+'_photo'
-        apass = pd.read_csv(self.workdir+self.name+self.marker+'_ref_stars.csv',
+        apass = pd.read_csv(self.workdir+self.name+'_files/'+self.name+self.marker+'_ref_stars.csv',
             comment="#")
         apass.set_index('id')
 
@@ -226,9 +228,9 @@ class Reduction:
 
         num_flns = len(self.flns)
 
-        MAG_LIM_INIT = MAG_LIM
+        #MAG_LIM_INIT = MAG_LIM
 
-        lco_log = Path(self.photo_file+'.csv')
+        lco_log = Path(self.workdir+self.name+'_files/'+self.photo_file+'.csv')
         print(lco_log)
 
         if lco_log.exists():
@@ -320,10 +322,10 @@ class Reduction:
 
                 if vrb: print("Filter: {}".format(filt))
 
-                idx_apass, d2d_apass, d3d_apass = coo_image.match_to_catalog_sky(coo_apass)
+                idx_apass, d2d_apass, d3d_apass = coo_image.match_to_catalog_sky(coo_apass) #
 
                 # Make mask due to separation
-                ss = (d2d_apass.deg*1000 < 5)
+                ss = (d2d_apass.deg*1000 < 2)
 
                 #if vrb: print("Separation to {}: {:5.3f} pixels".format(self.name,d2d_fair.deg[0]*1000))
                 #if vrb: print("Index in the image catalogue for {}: {}".format(self.name,idx_fair))
@@ -350,7 +352,7 @@ The plan is to have the program do both variable apperture photometry and fixed 
 Variable photometry default is ISOCOR but the plan is to have 2 optional parameters that the user can change in order to set both a different photomery method (ISO, AUTO, BEST, APER(aka fixed then the size needs to be set), PETRO) and the second one fixes the apperture to the inputed pixel size.
                 '''
                 ###We are getting the wrong magnitude here if we have an extended object because the apperture size is hard coded in on line 220. To change this we will need to change the photometry method that sextractor 
-                pp = np.isfinite(inst_mag[:,aper_size][ss]) & \
+                pp = np.isfinite(inst_mag[ss]) & \
                      (data['X_IMAGE'][ss] > PIX_EDGE ) & \
                      (data['X_IMAGE'][ss] < naxis1 -PIX_EDGE)  & \
                      (data['Y_IMAGE'][ss] > PIX_EDGE ) & \
@@ -383,6 +385,7 @@ Variable photometry default is ISOCOR but the plan is to have 2 optional paramet
                                  'exptime': exptime,
                                  'airmass': airmass
                                  }
+                            print()
                             id3 += 1
         #############################################################################################
                 if vrb: print('%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%')
@@ -395,6 +398,6 @@ Variable photometry default is ISOCOR but the plan is to have 2 optional paramet
         #    lco.to_csv(self.photo_file+".csv")
         #    lco.to_pickle(self.photo_file+".pkl")
                 if save_output & save_standards:
-                    sta.to_csv(self.photo_file+".csv")
-                    sta.to_pickle(self.photo_file+".pkl")
+                    sta.to_csv(self.name+'_files/'+self.photo_file+".csv")
+                    sta.to_pickle(self.name+'_files/'+self.photo_file+".pkl")
 

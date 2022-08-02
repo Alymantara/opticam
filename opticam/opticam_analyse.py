@@ -79,7 +79,7 @@ class Analysis:
             self.name = name
         self.marker = '_'+rule[:-6]
         self.aper_size = 5
-        self.raw_data = pd.read_pickle(self.workdir+self.name+self.marker+'_photo.pkl') #.sort_values("MJD")
+        self.raw_data = pd.read_pickle(self.workdir+self.name+'_files/'+self.name+self.marker+'_photo.pkl') #.sort_values("MJD")
 
         self.all_stars = np.unique(self.raw_data.id_apass)
 
@@ -137,28 +137,29 @@ class Analysis:
                                  self.raw_data.epoch[ss].values, return_indices=True)
 
                 if np.array_equal(self.raw_data.epoch[ss].values[y_ind],self.epochs_target):
-                    tmp = np.stack(10**(self.raw_data.mag_aper[ss]/-2.5),axis=0)[:,self.aper_size]
+                    tmp = np.stack(10**(self.raw_data.mag_aper[ss]/-2.5),axis=0)[:]
                     if self.stds_used == 0: comp = tmp[y_ind]
                     comp += tmp[y_ind]
                     self.stds_used += 1
                 #print(i,np.median(np.stack(lco.mag_aper[ss],axis=0)[:,aper_size]+23))
-
+        print(self.stds_used)
         self.comp_factor = comp
         
         # Make the photometry of the target
         ss = (self.raw_data.id_apass == target)
 
+        target_mag = np.stack(10**(self.raw_data.mag_aper[ss]/-2.5),axis=0)[:]
 
-        target_mag = np.stack(10**(self.raw_data.mag_aper[ss]/-2.5),axis=0)[:,self.aper_size]
         self.time = self.raw_data.MJD[ss].values
-        self.mag = -2.5*np.log10(target_mag/comp)
-        self.err = np.stack(self.raw_data.err_aper[ss],axis=0)[:,self.aper_size]
+        self.mag = -2.5*np.log10(target_mag/comp) #differential phtometry done by dividing flux from total flux of other stars. Why? how does it work? find out on monday.
+        self.err = np.stack(self.raw_data.err_aper[ss],axis=0)[:]
 
         if save:
             df = pd.DataFrame(data=np.array([self.time,
                                     self.mag,
                                     self.err]).T,columns=["mjd", "mag","err"])
-            df.to_csv(self.workdir+self.name+self.marker+'_lc_'+str(target).zfill(2)+'.csv',  index_label=False,index=False)
+            df.to_csv(self.workdir+self.name+'_files/'+self.name+self.marker+'_lc_'+str(target).zfill(2)+'.csv',  index_label=False,index=False)
+        #Make sure to have somehwere that we take out targets within 30 pixels of the edge !!
 
 
 
@@ -183,6 +184,7 @@ class Analysis:
         new_errs = []
         rms_mags = []
         #new_errs = np.sum(np.sqrt(1/mct.weight[pp_mct]))/(pp_mct.sum())
+        print(self.all_stars)
         for jj,i in enumerate(self.all_stars):
             ss = (self.raw_data.id_apass == i)
 
@@ -193,27 +195,29 @@ class Analysis:
                 color = 'r'
             
             ctr +=1
-            compu = np.stack(10**(self.raw_data.mag_aper[ss]/-2.5),axis=0)[:,self.aper_size]
+            compu = np.stack(10**(self.raw_data.mag_aper[ss]/-2.5),axis=0)[:]
             compu = compu[y_ind]
             mags = -2.5*np.log10(compu/self.comp_factor[x_ind])
-            new_e = np.sum(np.stack(self.raw_data.err_aper[ss],axis=0)[:,self.aper_size])/(ss.sum())
+            new_e = np.sum(np.stack(self.raw_data.err_aper[ss],axis=0)[:])/(ss.sum())
             if color == 'r':
                 plt.plot(np.median(mags),np.std(mags),'rs',ls='None',ms=15,mfc='None')
-            else:
+                plt.text(np.median(mags),np.std(mags)*1.5,str(int(i)), 
+                     horizontalalignment='center',
+                     verticalalignment='center',fontsize=15,color=color)
+            elif i == target:
                 plt.plot(np.median(mags),np.std(mags),'k.',ls='None')
+                plt.text(np.median(mags),np.std(mags)*1.5,str(int(i)), 
+                     horizontalalignment='center',
+                     verticalalignment='center',fontsize=15,color=color)
+                 
             std_mags.append(np.median(mags))
             rms_mags.append(np.std(mags))
             new_errs.append(new_e)
-
-            plt.text(np.median(mags),np.std(mags)*1.5,str(int(i)), 
-                 horizontalalignment='center',
-                 verticalalignment='center',fontsize=15,color=color)
+            
         self.std_mags = np.array(std_mags)
         rms_mags,std_mags = np.array(rms_mags),np.array(std_mags)
         ss = (rms_mags <1.0) & (std_mags < 5)
         ss[self.all_stars == target] = False
-
-        print(ss.sum(),ss.size)
         std_mags,new_errs,rms_mags,ss = zip(*sorted(zip(std_mags,new_errs,rms_mags,ss)))
         std_mags,new_errs,rms_mags,ss = np.array(std_mags),np.array(new_errs),np.array(rms_mags),np.array(ss)
         
@@ -268,13 +272,13 @@ class Analysis:
         plt.xlabel('Median Magnitude')
         lg= plt.legend()
         plt.tight_layout()
-        plt.savefig(self.name+self.marker+'_rms_mag.pdf')
+        plt.savefig(self.workdir+self.name+'_files/'+self.name+self.marker+'_rms_mag')
 
-        datos = pd.read_csv(self.workdir+self.name+self.marker+'_lc_'+str(target).zfill(2)+'.csv')
+        datos = pd.read_csv(self.workdir+self.name+'_files/'+self.name+self.marker+'_lc_'+str(target).zfill(2)+'.csv')
         datos['err2'] = np.sqrt((self.err*self.phot_factr)**2 + (self.phot_floor)**2) 
-        datos.to_csv(self.workdir+self.name+self.marker+'_lc_'+str(target).zfill(2)+'.csv',
-                     index_label=False,index=False)
-
+        datos.to_csv(self.workdir+self.name+'_files/'+self.name+self.marker+'_lc_'+str(target).zfill(2)+'.csv',
+                     index_label=False,index=False)#NOT BEING SAVED SO CHECK IT OUT PLS
+        
     def lightcurve(self,comp=None,std = True):
         """
         Plots the lightcurve of the target as well as a comparison star
@@ -304,16 +308,18 @@ class Analysis:
         if std:
 
             dd = np.abs(np.median(self.mag) - self.std_mags[self.mask])
+            if comp != None:
+                ll = self.all_stars[self.mask] == comp
+            else: ll = dd == np.min(dd)
 
-            ll = dd == np.min(dd)
             print("Using STD star #{:3.0f} in plot".format(self.all_stars[self.mask][ll][0]))
             ss = (self.raw_data.id_apass == self.all_stars[self.mask][ll][0])
-            #print(i,ss.sum(),self.epochs_target.size)
+            #print(i,ss.sum(),,self.epochs_target.size)
             #if ss.sum() >= self.epochs_target.size:
             
             xy, x_ind, y_ind = np.intersect1d(self.epochs_target,
                              self.raw_data.epoch[ss].values, return_indices=True)
-            compu = np.stack(10**(self.raw_data.mag_aper[ss]/-2.5),axis=0)[:,self.aper_size]
+            compu = np.stack(10**(self.raw_data.mag_aper[ss]/-2.5),axis=0)[:]
             compu = compu[y_ind]
             mags = -2.5*np.log10(compu/self.comp_factor[x_ind])
 
@@ -336,7 +342,7 @@ class Analysis:
         ax1.set_ylabel(r'$\Delta$m')
         ax2.set_ylabel(r'$\Delta$m')
         plt.tight_layout()
-        plt.savefig(self.name+self.marker+'_lc.pdf')
+        plt.savefig(self.workdir+self.name+'_files/'+self.name+self.marker+'_lc.pdf')
 
     def ccd_noise(self,image=0,aper=5):
         #aper+=4
@@ -419,7 +425,7 @@ class Analysis:
         plt.xlabel('-2.5 log(Count rate)')
         plt.ylabel(r'$\sigma_{SExt}$ / $\sigma_{theory}$')
         plt.tight_layout(h_pad=0)
-        plt.savefig(self.name+self.marker+'_SNR_andor.pdf')
+        plt.savefig(self.workdir+self.name+'_files/'+self.name+self.marker+'_SNR_andor.pdf')
 
 def snr(rate,bkg,time,npix,rn,gain,dark=0.0,binning=1):
     source = rate * time
