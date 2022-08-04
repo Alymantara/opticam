@@ -13,7 +13,8 @@ import os
 import aplpy
 from astropy.time import Time
 import astroalign as aa
-
+import sys
+#%%%
 class Reduction:
     '''
     Object that performs the aperture photometry
@@ -27,7 +28,7 @@ class Reduction:
     workdir : str, optional
         Working directory where the data and catalogues are stored
 
-    savedir : str, optional
+    catalogue : str, optional
         Directory of all the stars catalogue as measured by SExtractor
 
     name : str, optional
@@ -62,17 +63,17 @@ class Reduction:
         Transmission factors at each epoch
     '''
 
-    def __init__(self,workdir=None,rawdata = None,savedir=None,
-                name=None,rule='*.fits'):
+    def __init__(self,workdir=None,rawdata = None,catalogue=None,
+                name=None,rule='*.fits',config_fl_name=None, measurement_id=None, size=None):
 
         if workdir is None: 
             self.workdir = './'
         else:
             self.workdir = workdir
-        if savedir is None: 
-            self.savedir = 'catalogues/'
+        if catalogue is None: 
+            self.catalogue = 'catalogues/'
         else:
-            self.savedir = savedir
+            self.catalogue = catalogue
         if rawdata is None: 
             self.rawdata = 'raw_data/'
         else:
@@ -81,15 +82,69 @@ class Reduction:
             self.name = 'astro'
         else:
             self.name = name
-        
+        if config_fl_name == None:
+            self.config_fl_name = 'default.sex'
+        else:
+            self.config_fl_name = config_fl_name
+        if measurement_id is None:
+            self.measurement_id = 'ISOCOR'
+        elif measurement_id != 'ISO' and measurement_id != 'ISOCOR' and measurement_id != 'AUTO' and measurement_id != 'BEST' and measurement_id != 'APER' and measurement_id != 'PETRO':
+            print('The inputed parameter does not correspond to any existing SExtractor parameters. Setting to default.')
+            self.measurement_id = 'ISOCOR'
+        else:
+            self.measurement_id = measurement_id
+        if measurement_id == 'APER' and size is None:
+            print('Please input an aperture size(s) (in pixels)')
+            sys.exit()
+        self.aper_ind = None
+        if measurement_id == 'APER' and size is not None:
+            self.sizes = [3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33]
+            if size in self.sizes:    
+                self.aper_ind = self.sizes.index(size)
+            else:
+                self.aper_ind = -1
+                self.config_fl_name = self.config_fl_name.split('.')[0]+'_edit.sex'
+                self.write_sex_param(self.config_fl_name, ['PHOT_APERTURES'], [size])
+                
         self.rule = rule
         self.marker = '_'+rule[:-6]
-
         self.flns = self.get_files(self.rule)
-        #print("Loading")
-
         self._ROOT = os.path.abspath(os.path.dirname(__file__))
+    
+    def read_sex_param(self,fl_name):
+        text = open(fl_name, 'r')
+        lines = [line for line in text.readlines() if line.strip()]
+        text.close()
+        variables = []
+        values = []
+        for i in range(len(lines)):
+            if lines[i][0] != '#':
+                split = lines[i].split('\t')
+                variables.append(split[0])
+                if split[1] == '':
+                    values.append(split[2])
+                else:
+                    values.append(split[1])
+        d = {'Variables': variables, 'Values': values}
+        dictionary = pd.DataFrame(data = d, dtype ='str')
+        return dictionary
 
+    def write_sex_param(self,fl_name, param, values):
+        default = self.read_sex_param('default.sex')
+        for i in range(len(param)):
+            ss = (default['Variables'] == param[i])
+            if param[i] == 'PHOT_APERTURES':
+                default['Values'][ss] += ',' + str(values[i])
+            else:
+                default['Values'][ss] = values[i]
+            if all(ss == False):
+                d = {'Variables': [param[i]], 'Values': [values[i]]}
+                d = pd.DataFrame(data = d, dtype ='str')
+                default = pd.concat([default,d], ignore_index=True)
+        np.savetxt(fl_name,default.values,fmt='%s', delimiter='\t')
+        return    
+    
+#%%%
     def get_files(self,rule):
 
         print('Looking in: ',self.workdir+self.rawdata+rule)
@@ -102,7 +157,7 @@ class Reduction:
 
         return self.flns
 
-
+#%%%
     def sextractor(self):
         """
         Routine that uses SExtractor to perform
@@ -111,11 +166,11 @@ class Reduction:
         """
         sext_def= self._ROOT+'/sextractor_defaults/*'
         os.system('cp '+sext_def+' '+self.workdir)
-        if not os.path.isdir(self.workdir+self.savedir):
-            os.system('mkdir -p '+self.workdir+self.savedir)
+        if not os.path.isdir(self.workdir+self.catalogue):
+            os.system('mkdir -p '+self.workdir+self.catalogue)
 
         for i,fln in enumerate(self.flns[:]):
-            exists = os.path.isfile(self.workdir+self.savedir+ \
+            exists = os.path.isfile(self.workdir+self.catalogue+ \
                     (fln.split(".fits")[0]+"_cat.fits").split("/")[-1])
             if not exists:
                 os.system("rm temp_sextractor_file.fits")
@@ -133,14 +188,13 @@ class Reduction:
                 except:
                     gain = 1.0
 
-                sex_out = "sextractor temp_sextractor_file.fits  -c default.sex -CATALOG_NAME "+ \
+                sex_out = "sextractor temp_sextractor_file.fits  -c "+self.config_fl_name+" -CATALOG_NAME "+ \
                           fln.split(".fits")[0]+"_cat.fits"+" -GAIN "+str(gain)
-                #print(sex_out)
                 os.system(sex_out)
                 print("mv "+fln.split(".fits")[0]+"_cat.fits "+\
-                            self.workdir+self.savedir+".")
+                            self.workdir+self.catalogue+".")
                 os.system("mv "+fln.split(".fits")[0]+"_cat.fits "+\
-                            self.workdir+self.savedir+".")
+                            self.workdir+self.catalogue+".")
                 print("{:4.0f} / {:4.0f} -- {}".format(i+1,len(self.flns),fln))
             else:
                 print("{:4.0f} / {:4.0f} -- It exists!".format(i+1,len(self.flns)))
@@ -154,7 +208,7 @@ class Reduction:
         if not os.path.isdir(self.workdir+self.name+'_files/'):
             os.system('mkdir '+self.workdir+self.name+'_files/')
         fln = self.flns[number].split('/')[-1]
-        fl1 = self.workdir+self.savedir+fln.split(".fits")[0]+"_cat.fits"
+        fl1 = self.workdir+self.catalogue+fln.split(".fits")[0]+"_cat.fits"
         fl2 = self.workdir+self.rawdata+fln
         print(fl1)
 
@@ -170,11 +224,9 @@ class Reduction:
 
         for i in range(data['X_IMAGE'].size):
             plt.text(data['X_IMAGE'][i]+5, data['Y_IMAGE'][i]+5,data['NUMBER'][i])
-        #gc.show_circles(coo_image.ra.deg[ss][pp], coo_image.dec.deg[ss][pp], 
+        
         plt.show()
-
         gc.savefig(self.workdir+self.name+'_files/'+self.name+self.marker+'_fov.pdf')
-
         df = pd.DataFrame(data=np.array([data['NUMBER'],
                                 data['X_IMAGE'],
                                 data['Y_IMAGE']]).T,columns=["id", "x","y"])
@@ -209,13 +261,9 @@ class Reduction:
         save_standards = True
         save_target = True
 
-        flux_id = 'MAG_APER'
-        err_id  = 'MAGERR_APER'
-
-        
         PIX_EDGE = 30
         MAG_LIM = 14.0
-        MAG_OFFSET = 2.0
+        #MAG_OFFSET = 2.0
         MAG_LIM_DIFF = 16.0
         DIFF_REF_STAR = 1362
         SEEING_LIMIT = 60
@@ -228,44 +276,27 @@ class Reduction:
 
         num_flns = len(self.flns)
 
-        #MAG_LIM_INIT = MAG_LIM
-
         lco_log = Path(self.workdir+self.name+'_files/'+self.photo_file+'.csv')
         print(lco_log)
 
         if lco_log.exists():
             print('Photometry file already exists')
-            #lco = pd.read_csv(lco_log)
             check_flag = True
         else:
-            #"Object","Filter","MJD","Flux","Error"
-            '''d = {'flname': [], 'Object': [],'Filter': [],'MJD': [],
-                 'zp_mag': [],'zp_err': [],
-                 'mag_aper': [],'err_aper': [],
-                 'zp0_fit': [],'zp0_err': [],
-                 'dist':[],'flag':[],'n_std':[],
-                 'n_diff':[],
-                 'airmass':[],'exptime':[],'fwhm':[],'observatory': [],'seeing': [],
-                 'skymag': [],'telid': [],"psf_fwhm": [],
-                 'm_fit': [],'b_fit': [],
-                 'X': [],'Y': [],
-                 'corrects':[]}'''
-
             dd = {'flname': [], 'id_apass': [],'Filter': [],'MJD': [],
-                 'mag_aper': [],'err_aper': []
+                 'flux': [],'flux_err': [],'mag': [],'mag_err': []
                  }
-            #lco = pd.DataFrame(data=d)
+
             sta = pd.DataFrame(data=dd)
-            #df2 = {}
             df3 = {}
             id3 = 0
             check_flag = False
         print("OPTICAM - Light curve generator")
         
         for i,flname in enumerate(self.flns[:]):
-            cat_flname = self.workdir+self.savedir+flname.split('/')[-1][:-5]+'_cat.fits'
+            cat_flname = self.workdir+self.catalogue+flname.split('/')[-1][:-5]+'_cat.fits'
             print(flname,cat_flname)
-            if check_flag : # & (True in (lco['flname'] == flname).values)
+            if check_flag :
                 if vrb: print(flname+" exists")
             else:
                 print("Processing {:5.0f} / {:5.0f} : {}".format(i+1,num_flns,
@@ -277,19 +308,11 @@ class Reduction:
                 mjd_t = fits.getval(flname,"GPSTIME",0)[:-5]
                 mjd_t = mjd_t.replace(' ', 'T')
                 mjd = Time(mjd_t, format='fits', scale='utc').mjd
-
-                #camera = fits.getval(flname,"DATE-OBS",0)
                 airmass = fits.getval(flname,"AIRMASS",0)
-                #fwhm = fits.getval(flname,"L1FWHM",0)
                 naxis1 = fits.getval(flname,"NAXIS1",0)
                 naxis2 = fits.getval(flname,"NAXIS2",0)
-                observatory = fits.getval(flname,"OBSERVAT",0)
-                telid = fits.getval(flname,"ORIGIN",0)
-                telid = flname.split("-")[0][-5:]
-                #pixscale = fits.getval(flname,"PIXSIZE",0)
                 pixscale = 0.14
                 #creating a mask to elimitate 0 FWHM data
-                # I am guessing you want to get the FWHM estimated with sextractor
                 msk = np.argwhere(fits.getdata(cat_flname).FWHM_IMAGE >0 ).T[0]
                 PSF_FWHM = np.median(fits.getdata(cat_flname).FWHM_IMAGE[msk])
                 try:
@@ -327,77 +350,78 @@ class Reduction:
                 # Make mask due to separation
                 ss = (d2d_apass.deg*1000 < 2)
 
-                #if vrb: print("Separation to {}: {:5.3f} pixels".format(self.name,d2d_fair.deg[0]*1000))
-                #if vrb: print("Index in the image catalogue for {}: {}".format(self.name,idx_fair))
-
-
                 std_mag = apass['x'][idx_apass]
                 ## %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                measurement_id_list = ['ISO', 'ISOCOR', 'APER', 'AUTO', 'BEST', 'PETRO']
+                name = []
+                inst_flux = []
+                inst_flux_err = []
+                inst_mag = []
+                inst_mag_err = []
+                for i in measurement_id_list:
+                    flux_id = 'FLUX_'+i
+                    fluxerr_id = 'FLUXERR_'+i
+                    mag_id = 'MAG_'+i
+                    magerr_id = 'MAGERR_'+i
+                    
+                    name.append(i)
+                    inst_flux.append(data[flux_id])
+                    inst_flux_err.append(data[fluxerr_id])
+                    inst_mag.append(data[mag_id] + 2.5 * np.log10(exptime))
+                    inst_mag_err.append(data[magerr_id])
 
-                inst_mag = data[flux_id] + 2.5 * np.log10(exptime)
-                inst_err = data[err_id]
-
-                
-                
-                '''
-The plan is to have the program do both variable apperture photometry and fixed apperture photometry. The fixed apperture is chosen by using:
-                sizes = [3,5,8,11,13,15,18,21,24,27,30,33]
-                blur = int(np.ceil(2*PSF_FHWM))
-                for i in np.range(len(inst_mag)):
-                    if sizes[-1-i] == blur or sizes[-1-i]-blur == 1 or sizes[-1-i]-blur == 2:
-                        aper_size = sizes[-1-i]
+                if self.aper_ind == None:
+                    pp = np.isfinite(inst_mag[name.index(self.measurement_id)][ss]) & \
+                         (data['X_IMAGE'][ss] > PIX_EDGE ) & \
+                         (data['X_IMAGE'][ss] < naxis1 -PIX_EDGE)  & \
+                         (data['Y_IMAGE'][ss] > PIX_EDGE ) & \
+                         (data['Y_IMAGE'][ss] < naxis2 -PIX_EDGE )
                 else:
-                    print('Could not find appropriate fixed apperture please set ')
-                    interupt
-Variable photometry default is ISOCOR but the plan is to have 2 optional parameters that the user can change in order to set both a different photomery method (ISO, AUTO, BEST, APER(aka fixed then the size needs to be set), PETRO) and the second one fixes the apperture to the inputed pixel size.
-                '''
-                ###We are getting the wrong magnitude here if we have an extended object because the apperture size is hard coded in on line 220. To change this we will need to change the photometry method that sextractor 
-                pp = np.isfinite(inst_mag[ss]) & \
-                     (data['X_IMAGE'][ss] > PIX_EDGE ) & \
-                     (data['X_IMAGE'][ss] < naxis1 -PIX_EDGE)  & \
-                     (data['Y_IMAGE'][ss] > PIX_EDGE ) & \
-                     (data['Y_IMAGE'][ss] < naxis2 -PIX_EDGE )
-                fwhm = np.median(data['FWHM_IMAGE'])
+                    pp = np.isfinite(np.array(inst_mag[2])[:,self.aper_ind][ss]) & \
+                        (data['X_IMAGE'][ss] > PIX_EDGE ) & \
+                        (data['X_IMAGE'][ss] < naxis1 -PIX_EDGE)  & \
+                        (data['Y_IMAGE'][ss] > PIX_EDGE ) & \
+                        (data['Y_IMAGE'][ss] < naxis2 -PIX_EDGE )
+                
 
                 if vrb: print("Numer of Absolute calibration stars {}".format(pp.sum()))
 
-        #############################################################################################
-        ##############################    WRITE IN PANDAS DATAFRAME    ############################
-        #############################################################################################
                 if ((pp.sum() >= 3)) & save_target:
                    if save_standards:
                         for jj in np.arange(pp.sum()):
-                            #df3 = pd.DataFrame([[flname, std_mag[ss][pp].index.values[jj],
-                            #        filt,mjd+exptime/86400./2.,
-                            #        std_mag[ss][pp].values[jj],
-                            #        zp0, zp0_err,
-                            #        zp0_min,zp0_min_err,
-                            #        inst_mag[ss][pp][jj],inst_err[ss][pp][jj],
-                            #        corrects]],
-                            #            columns=list(dd.keys()))
-                            #sta = pd.concat([sta,df3], ignore_index=True)
-                            #apass[apass.id == 1210]
-                            df3[id3] = {'flname': flname, 'id_apass':apass.id.iloc[std_mag[ss][pp].index.values[jj]],
-                                 'Filter': filt,'MJD': mjd+exptime/86400./2.,
-                                 'epoch':i,
-                                 'mag_aper': inst_mag[ss][pp][jj],
-                                 'err_aper': inst_err[ss][pp][jj],
-                                 'exptime': exptime,
-                                 'airmass': airmass
-                                 }
+                            
+                            if self.aper_ind == None:
+                                df3[id3] = {'flname': flname, 'id_apass':apass.id.iloc[std_mag[ss][pp].index.values[jj]],
+                                     'Filter': filt,'MJD': mjd+exptime/86400./2.,
+                                     'epoch':i,
+                                     'flux': inst_flux[name.index(self.measurement_id)][ss][pp][jj],
+                                     'flux_err': inst_flux_err[name.index(self.measurement_id)][ss][pp][jj],
+                                     'mag': inst_mag[name.index(self.measurement_id)][ss][pp][jj],
+                                     'mag_err': inst_mag_err[name.index(self.measurement_id)][ss][pp][jj],
+                                     'exptime': exptime,
+                                     'airmass': airmass
+                                     }
+                            else:
+                                df3[id3] = {'flname': flname, 'id_apass':apass.id.iloc[std_mag[ss][pp].index.values[jj]],
+                                     'Filter': filt,'MJD': mjd+exptime/86400./2.,
+                                     'epoch':i,
+                                     'flux': np.array(inst_flux[2])[:,self.aper_ind][ss][pp][jj],
+                                     'flux_err': np.array(inst_flux_err[2])[:,self.aper_ind][ss][pp][jj],
+                                     'mag': np.array(inst_mag[2])[:,self.aper_ind][ss][pp][jj],
+                                     'mag_err': np.array(inst_mag_err[2])[:,self.aper_ind][ss][pp][jj],
+                                     'exptime': exptime,
+                                     'airmass': airmass
+                                     }
+                                
                             print()
                             id3 += 1
         #############################################################################################
-                if vrb: print('%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%')
-                #stop
-
-        #lco = pd.DataFrame.from_dict(df2,"index")
+                
                 sta = pd.DataFrame.from_dict(df3,"index")
-        ### Now, let's put all in one log.
-        #if save_output & save_target:
-        #    lco.to_csv(self.photo_file+".csv")
-        #    lco.to_pickle(self.photo_file+".pkl")
+
                 if save_output & save_standards:
                     sta.to_csv(self.name+'_files/'+self.photo_file+".csv")
                     sta.to_pickle(self.name+'_files/'+self.photo_file+".pkl")
+                    
+                
 
