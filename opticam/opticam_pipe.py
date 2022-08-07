@@ -3,9 +3,6 @@ import matplotlib.pyplot as plt
 from astropy.io import fits
 from astropy.coordinates import SkyCoord
 from astropy import units as u
-from astropy import constants as c
-import astropy.coordinates as coord
-from astropy import wcs
 import glob
 from pathlib import Path
 import pandas as pd
@@ -62,7 +59,7 @@ class Reduction:
     comp_factor : float, array
         Transmission factors at each epoch
     '''
-
+#%%
     def __init__(self,workdir=None,rawdata = None,catalogue=None,
                 name=None,rule='*.fits',config_fl_name=None, measurement_id=None, size=None):
 
@@ -94,9 +91,8 @@ class Reduction:
         else:
             self.measurement_id = measurement_id
         if measurement_id == 'APER' and size is None:
-            print('Please input an aperture size(s) (in pixels)')
-            sys.exit()
-        self.aper_ind = None
+            print('No apperture size imputed, setting to default (16 pixels)')
+        self.aper_ind = 13
         if measurement_id == 'APER' and size is not None:
             self.sizes = [3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33]
             if size in self.sizes:    
@@ -104,13 +100,13 @@ class Reduction:
             else:
                 self.aper_ind = -1
                 self.config_fl_name = self.config_fl_name.split('.')[0]+'_edit.sex'
-                self.write_sex_param(self.config_fl_name, ['PHOT_APERTURES'], [size])
+                self.edit_sex_param(self.config_fl_name, ['PHOT_APERTURES'], [size])
                 
         self.rule = rule
         self.marker = '_'+rule[:-6]
         self.flns = self.get_files(self.rule)
         self._ROOT = os.path.abspath(os.path.dirname(__file__))
-    
+#%%    
     def read_sex_param(self,fl_name):
         text = open(fl_name, 'r')
         lines = [line for line in text.readlines() if line.strip()]
@@ -128,8 +124,8 @@ class Reduction:
         d = {'Variables': variables, 'Values': values}
         dictionary = pd.DataFrame(data = d, dtype ='str')
         return dictionary
-
-    def write_sex_param(self,fl_name, param, values):
+#%%
+    def edit_sex_param(self,fl_name, param, values):
         default = self.read_sex_param('default.sex')
         for i in range(len(param)):
             ss = (default['Variables'] == param[i])
@@ -199,6 +195,7 @@ class Reduction:
             else:
                 print("{:4.0f} / {:4.0f} -- It exists!".format(i+1,len(self.flns)))
 
+#%%
     def creat_ref_list(self,number=0):
         '''
         Create reference star list
@@ -234,6 +231,7 @@ class Reduction:
 
         self.ref_stars = df
 
+#%%
     def get_position(self,num):
 
         ss = self.ref_stars.id == num
@@ -244,13 +242,14 @@ class Reduction:
         print(self.name+ \
             ' position is: X= {:4.0f}, Y={:4.0f}'.format(self.tar_x,self.tar_y))
 
+#%%
     def photometry(self):
         """
         Creates a single output file from all the catalogues. 
         Cross-matches the positions of each catalogue and assigns
         every star its unique identifier.
         """
-        self.photo_file = self.name+self.marker+'_photo'
+        self.photo_file = self.name+self.marker+'_photo' #+'_'+self.measurement_id
         apass = pd.read_csv(self.workdir+self.name+'_files/'+self.name+self.marker+'_ref_stars.csv',
             comment="#")
         apass.set_index('id')
@@ -262,15 +261,6 @@ class Reduction:
         save_target = True
 
         PIX_EDGE = 30
-        MAG_LIM = 14.0
-        #MAG_OFFSET = 2.0
-        MAG_LIM_DIFF = 16.0
-        DIFF_REF_STAR = 1362
-        SEEING_LIMIT = 60
-        aper_size = 3 # --> 8,11,13,15,18,21,24,27,30,33 in pixels DIAMETER
-        colour_correction = True
-
-        #%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         
         coo_apass = SkyCoord(apass['x']/1000.*u.deg, apass['y']/1000*u.deg)
 
@@ -303,7 +293,7 @@ class Reduction:
                         flname.split('/')[-1]))
 
                 filt = fits.getval(flname,"FILTER",0)
-                obj = fits.getval(flname,"OBJECT",0)
+                #obj = fits.getval(flname,"OBJECT",0)
                 exptime = fits.getval(flname,"EXPOSURE",0)
                 mjd_t = fits.getval(flname,"GPSTIME",0)[:-5]
                 mjd_t = mjd_t.replace(' ', 'T')
@@ -353,35 +343,77 @@ class Reduction:
                 std_mag = apass['x'][idx_apass]
                 ## %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
                 measurement_id_list = ['ISO', 'ISOCOR', 'APER', 'AUTO', 'BEST', 'PETRO']
-                name = []
-                inst_flux = []
-                inst_flux_err = []
-                inst_mag = []
-                inst_mag_err = []
-                for i in measurement_id_list:
-                    flux_id = 'FLUX_'+i
-                    fluxerr_id = 'FLUXERR_'+i
-                    mag_id = 'MAG_'+i
-                    magerr_id = 'MAGERR_'+i
-                    
-                    name.append(i)
-                    inst_flux.append(data[flux_id])
-                    inst_flux_err.append(data[fluxerr_id])
-                    inst_mag.append(data[mag_id] + 2.5 * np.log10(exptime))
-                    inst_mag_err.append(data[magerr_id])
+                flux_ISO = []
+                flux_ISO_err = []
+                mag_ISO = []
+                mag_ISO_err = []
+                
+                flux_ISO.append(data['FLUX_ISO'])
+                flux_ISO_err.append(data['FLUXERR_ISO'])
+                mag_ISO.append(data['MAG_ISO'] + 2.5 * np.log10(exptime))
+                mag_ISO_err.append(data['MAGERR_ISO'])
+                
+                flux_ISOCOR = []
+                flux_ISOCOR_err = []
+                mag_ISOCOR = []
+                mag_ISOCOR_err = []
+                
+                flux_ISOCOR.append(data['FLUX_ISOCOR'])
+                flux_ISOCOR_err.append(data['FLUXERR_ISOCOR'])
+                mag_ISOCOR.append(data['MAG_ISOCOR'] + 2.5 * np.log10(exptime))
+                mag_ISOCOR_err.append(data['MAGERR_ISOCOR'])
+                
+                flux_APER = []
+                flux_APER_err = []
+                mag_APER = []
+                mag_APER_err = []
+                
+                flux_APER.append(data['FLUX_APER'])
+                flux_APER_err.append(data['FLUXERR_APER'])
+                mag_APER.append(data['MAG_APER'] + 2.5 * np.log10(exptime))
+                mag_APER_err.append(data['MAGERR_APER'])
 
-                if self.aper_ind == None:
-                    pp = np.isfinite(inst_mag[name.index(self.measurement_id)][ss]) & \
-                         (data['X_IMAGE'][ss] > PIX_EDGE ) & \
-                         (data['X_IMAGE'][ss] < naxis1 -PIX_EDGE)  & \
-                         (data['Y_IMAGE'][ss] > PIX_EDGE ) & \
-                         (data['Y_IMAGE'][ss] < naxis2 -PIX_EDGE )
-                else:
-                    pp = np.isfinite(np.array(inst_mag[2])[:,self.aper_ind][ss]) & \
-                        (data['X_IMAGE'][ss] > PIX_EDGE ) & \
-                        (data['X_IMAGE'][ss] < naxis1 -PIX_EDGE)  & \
-                        (data['Y_IMAGE'][ss] > PIX_EDGE ) & \
-                        (data['Y_IMAGE'][ss] < naxis2 -PIX_EDGE )
+                flux_APER = np.array(flux_APER)
+                flux_APER_err = np.array(flux_APER_err)
+                mag_APER = np.array(mag_APER)
+                mag_APER_err = np.array(mag_APER_err)
+            
+                flux_AUTO = []
+                flux_AUTO_err = []
+                mag_AUTO = []
+                mag_AUTO_err = []
+                
+                flux_AUTO.append(data['FLUX_AUTO'])
+                flux_AUTO_err.append(data['FLUXERR_AUTO'])
+                mag_AUTO.append(data['MAG_AUTO'] + 2.5 * np.log10(exptime))
+                mag_AUTO_err.append(data['MAGERR_AUTO'])
+                
+                flux_BEST = []
+                flux_BEST_err = []
+                mag_BEST = []
+                mag_BEST_err = []
+                
+                flux_BEST.append(data['FLUX_BEST'])
+                flux_BEST_err.append(data['FLUXERR_BEST'])
+                mag_BEST.append(data['MAG_BEST'] + 2.5 * np.log10(exptime))
+                mag_BEST_err.append(data['MAGERR_BEST'])
+                
+                flux_PETRO = []
+                flux_PETRO_err = []
+                mag_PETRO = []
+                mag_PETRO_err = []
+                
+                flux_PETRO.append(data['FLUX_PETRO'])
+                flux_PETRO_err.append(data['FLUXERR_PETRO'])
+                mag_PETRO.append(data['MAG_PETRO'] + 2.5 * np.log10(exptime))
+                mag_PETRO_err.append(data['MAGERR_PETRO'])
+
+
+                pp = np.isfinite(np.array(mag_ISO)[0][ss]) & \
+                     (data['X_IMAGE'][ss] > PIX_EDGE ) & \
+                     (data['X_IMAGE'][ss] < naxis1 -PIX_EDGE)  & \
+                     (data['Y_IMAGE'][ss] > PIX_EDGE ) & \
+                     (data['Y_IMAGE'][ss] < naxis2 -PIX_EDGE )
                 
 
                 if vrb: print("Numer of Absolute calibration stars {}".format(pp.sum()))
@@ -389,35 +421,43 @@ class Reduction:
                 if ((pp.sum() >= 3)) & save_target:
                    if save_standards:
                         for jj in np.arange(pp.sum()):
-                            
-                            if self.aper_ind == None:
-                                df3[id3] = {'flname': flname, 'id_apass':apass.id.iloc[std_mag[ss][pp].index.values[jj]],
-                                     'Filter': filt,'MJD': mjd+exptime/86400./2.,
-                                     'epoch':i,
-                                     'flux': inst_flux[name.index(self.measurement_id)][ss][pp][jj],
-                                     'flux_err': inst_flux_err[name.index(self.measurement_id)][ss][pp][jj],
-                                     'mag': inst_mag[name.index(self.measurement_id)][ss][pp][jj],
-                                     'mag_err': inst_mag_err[name.index(self.measurement_id)][ss][pp][jj],
-                                     'exptime': exptime,
-                                     'airmass': airmass
-                                     }
-                            else:
-                                df3[id3] = {'flname': flname, 'id_apass':apass.id.iloc[std_mag[ss][pp].index.values[jj]],
-                                     'Filter': filt,'MJD': mjd+exptime/86400./2.,
-                                     'epoch':i,
-                                     'flux': np.array(inst_flux[2])[:,self.aper_ind][ss][pp][jj],
-                                     'flux_err': np.array(inst_flux_err[2])[:,self.aper_ind][ss][pp][jj],
-                                     'mag': np.array(inst_mag[2])[:,self.aper_ind][ss][pp][jj],
-                                     'mag_err': np.array(inst_mag_err[2])[:,self.aper_ind][ss][pp][jj],
-                                     'exptime': exptime,
-                                     'airmass': airmass
-                                     }
+                            df3[id3] = {'flname': flname, 'id_apass':apass.id.iloc[std_mag[ss][pp].index.values[jj]],
+                                 'Filter': filt,'MJD': mjd+exptime/86400./2.,
+                                 'epoch':i,
+                                 'flux_ISO': flux_ISO[0][ss][pp][jj],
+                                 'flux_err_ISO': flux_ISO_err[0][ss][pp][jj],
+                                 'mag_ISO': mag_ISO[0][ss][pp][jj],
+                                 'mag_err_ISO': mag_ISO_err[0][ss][pp][jj],
+                                 'flux_ISOCOR': flux_ISOCOR[0][ss][pp][jj],
+                                 'flux_err_ISOCOR': flux_ISOCOR_err[0][ss][pp][jj],
+                                 'mag_ISOCOR': mag_ISOCOR[0][ss][pp][jj],
+                                 'mag_err_ISOCOR': mag_ISOCOR_err[0][ss][pp][jj],
+                                 'flux_APER': flux_APER[0,:,self.aper_ind][ss][pp][jj],
+                                 'flux_err_APER': flux_APER_err[0,:,self.aper_ind][ss][pp][jj],
+                                 'mag_APER': mag_APER[0,:,self.aper_ind][ss][pp][jj],
+                                 'mag_err_APER': mag_APER_err[0,:,self.aper_ind][ss][pp][jj],
+                                 'flux_AUTO': flux_AUTO[0][ss][pp][jj],
+                                 'flux_err_AUTO': flux_AUTO_err[0][ss][pp][jj],
+                                 'mag_AUTO': mag_AUTO[0][ss][pp][jj],
+                                 'mag_err_AUTO': mag_AUTO_err[0][ss][pp][jj],
+                                 'flux_BEST': flux_BEST[0][ss][pp][jj],
+                                 'flux_err_BEST': flux_BEST_err[0][ss][pp][jj],
+                                 'mag_BEST': mag_BEST[0][ss][pp][jj],
+                                 'mag_err_BEST': mag_BEST_err[0][ss][pp][jj],
+                                 'flux_PETRO': flux_PETRO[0][ss][pp][jj],
+                                 'flux_err_PETRO': flux_PETRO_err[0][ss][pp][jj],
+                                 'mag_PETRO': mag_PETRO[0][ss][pp][jj],
+                                 'mag_err_PETRO': mag_PETRO_err[0][ss][pp][jj],
+                                 'exptime': exptime,
+                                 'airmass': airmass
+                                 }
                                 
                             print()
                             id3 += 1
         #############################################################################################
                 
                 sta = pd.DataFrame.from_dict(df3,"index")
+                sta = sta.sort_values(by=['id_apass','epoch'])
 
                 if save_output & save_standards:
                     sta.to_csv(self.name+'_files/'+self.photo_file+".csv")
