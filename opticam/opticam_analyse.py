@@ -489,7 +489,8 @@ class Analysis:
             if c == len(self.all_stars)-1:
                 plt.show()
                 c = 0
-
+    def forced_photo(self):
+        self.
 
 def snr(rate,bkg,time,npix,rn,gain,dark=0.0,binning=1):
     source = rate * time
