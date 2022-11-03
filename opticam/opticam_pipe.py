@@ -166,8 +166,13 @@ class Reduction:
             os.system('mkdir -p '+self.workdir+self.catalogue)
 
         for i,fln in enumerate(self.flns[:]):
+            if fln[-4:] == "fits":
+                cat_fln = fln.split(".fits")[0]+"_cat.fits"
+            elif fln[-3:] == "fit":
+                cat_fln = fln.split(".fit")[0]+"_cat.fits"
             exists = os.path.isfile(self.workdir+self.catalogue+ \
-                    (fln.split(".fits")[0]+"_cat.fits").split("/")[-1])
+                    (cat_fln).split("/")[-1])
+            
             if not exists:
                 os.system("rm temp_sextractor_file.fits")
 
@@ -185,11 +190,11 @@ class Reduction:
                     gain = 1.0
 
                 sex_out = "sextractor temp_sextractor_file.fits  -c "+self.config_fl_name+" -CATALOG_NAME "+ \
-                          fln.split(".fits")[0]+"_cat.fits"+" -GAIN "+str(gain)
+                          cat_fln+" -GAIN "+str(gain)
                 os.system(sex_out)
-                print("mv "+fln.split(".fits")[0]+"_cat.fits "+\
+                print("mv "+cat_fln+\
                             self.workdir+self.catalogue+".")
-                os.system("mv "+fln.split(".fits")[0]+"_cat.fits "+\
+                os.system("mv "+cat_fln+\
                             self.workdir+self.catalogue+".")
                 print("{:4.0f} / {:4.0f} -- {}".format(i+1,len(self.flns),fln))
             else:
