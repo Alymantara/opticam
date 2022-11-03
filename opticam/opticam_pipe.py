@@ -305,7 +305,8 @@ class Reduction:
                 filt = fits.getval(flname,"FILTER",0)
                 #obj = fits.getval(flname,"OBJECT",0)
                 exptime = fits.getval(flname,"EXPOSURE",0)
-                mjd_t = fits.getval(flname,"GPSTIME",0)[:-5]
+                try: mjd_t = fits.getval(flname,"GPSTIME",0)[:-5]
+                except: mjd_t = fits.getval(flname,"UT",0)
                 mjd_t = mjd_t.replace(' ', 'T')
                 mjd = Time(mjd_t, format='fits', scale='utc').mjd
                 airmass = fits.getval(flname,"AIRMASS",0)
