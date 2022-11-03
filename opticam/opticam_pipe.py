@@ -152,6 +152,10 @@ class Reduction:
         fln = self.flns[number].split('/')[-1]
 
         print(fln)
+        #if fln[-3:] == 'its':
+        #    fl1 = self.workdir+self.savedir+fln.split(".fits")[0]+"_cat.fits"
+        #else:
+        #    fl1 = self.workdir+self.savedir+fln.split(".fit")[0]+"_cat.fits"
         fl1 = self.workdir+self.savedir+fln.split(".fits")[0]+"_cat.fits"
         fl2 = self.workdir+self.rawdata+fln
         
