@@ -103,7 +103,7 @@ class Reduction:
                 self.edit_sex_param(self.config_fl_name, ['PHOT_APERTURES'], [size])
                 
         self.rule = rule
-        self.marker = '_'+rule[:-6]
+        self.marker = '_'+rule.split('C')[1][0]
         self.flns = self.get_files(self.rule)
         self._ROOT = os.path.abspath(os.path.dirname(__file__))
 #%%    
@@ -192,10 +192,13 @@ class Reduction:
                 sex_out = "sextractor temp_sextractor_file.fits  -c "+self.config_fl_name+" -CATALOG_NAME "+ \
                           cat_fln+" -GAIN "+str(gain)
                 os.system(sex_out)
+                print(cat_fln)
+                
                 print("mv "+cat_fln+\
-                            self.workdir+self.catalogue+".")
+                            " "+self.workdir+self.catalogue+".")
                 os.system("mv "+cat_fln+\
-                            self.workdir+self.catalogue+".")
+                             " "+self.workdir+self.catalogue+".")
+
                 print("{:4.0f} / {:4.0f} -- {}".format(i+1,len(self.flns),fln))
             else:
                 print("{:4.0f} / {:4.0f} -- It exists!".format(i+1,len(self.flns)))
@@ -213,13 +216,13 @@ class Reduction:
 #<<<<<<< HEAD
 #
 #        print(fln)
-#        #if fln[-3:] == 'its':
-#        #    fl1 = self.workdir+self.savedir+fln.split(".fits")[0]+"_cat.fits"
-#        #else:
-#        #    fl1 = self.workdir+self.savedir+fln.split(".fit")[0]+"_cat.fits"
+        if fln[-3:] == 'its':
+            fl1 = self.workdir+self.catalogue+fln.split(".fits")[0]+"_cat.fits"
+        else:
+            fl1 = self.workdir+self.catalogue+fln.split(".fit")[0]+"_cat.fits"
 #        fl1 = self.workdir+self.savedir+fln.split(".fits")[0]+"_cat.fits"
 #=======
-        fl1 = self.workdir+self.catalogue+fln.split(".fits")[0]+"_cat.fits"
+#        fl1 = self.workdir+self.catalogue+fln.split(".fits")[0]+"_cat.fits"
 #>>>>>>> cde02a02d08f9c79090f6aacc7062daf6e4f0152
         fl2 = self.workdir+self.rawdata+fln
         print(fl1)
@@ -299,7 +302,13 @@ class Reduction:
         print("OPTICAM - Light curve generator")
         
         for i,flname in enumerate(self.flns[:]):
-            cat_flname = self.workdir+self.catalogue+flname.split('/')[-1][:-5]+'_cat.fits'
+            flnt = flname.split('/')[-1]
+            if flnt.split('.')[-1] == 'fits':
+                flnt2 = flnt[:-5]+'_cat.fits'
+            elif flnt.split('.')[-1] == 'fit':
+                flnt2 = flnt[:-4]+'_cat.fits'
+                
+            cat_flname = self.workdir+self.catalogue+flnt2
             print(flname,cat_flname)
             if check_flag :
                 if vrb: print(flname+" exists")
