@@ -103,7 +103,7 @@ class Reduction:
                 self.edit_sex_param(self.config_fl_name, ['PHOT_APERTURES'], [size])
                 
         self.rule = rule
-        self.marker = '_'+rule.split('C')[1][0]
+        self.marker = '_C'+rule.split('C')[1][0]
         self.flns = self.get_files(self.rule)
         self._ROOT = os.path.abspath(os.path.dirname(__file__))
 #%%    

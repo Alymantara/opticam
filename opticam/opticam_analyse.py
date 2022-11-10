@@ -60,9 +60,12 @@ class Analysis:
 
     comp_factor : float, array
         Transmission factors at each epoch
+        
+    measurement_id : str
+        default = 'APER'. keyword for sextractor flux measurement, see sextractor documentation for more info. 
     '''
 
-    def __init__(self,workdir=None,catalogue = None,name=None,rule = None, measurement_id=None):
+    def __init__(self,workdir=None,catalogue = None,name=None,rule = None, measurement_id='APER'):
 
         if workdir is None: 
             self.workdir = './'
@@ -77,17 +80,17 @@ class Analysis:
             self.name = 'astro'
         else:
             self.name = name
-        if measurement_id is None:
-            self.measurement_id = 'ISOCOR'
-        elif measurement_id != 'ISO' and measurement_id != 'ISOCOR' and measurement_id != 'AUTO' and measurement_id != 'BEST' and measurement_id != 'APER' and measurement_id != 'PETRO':
-            print('The inputed parameter does not correspond to any existing SExtractor parameters. Setting to default.')
-            self.measurement_id = 'ISOCOR'
-        else:
-            self.measurement_id = measurement_id
+        #if measurement_id is None:
+        #    self.measurement_id = 'ISOCOR'
+        #elif measurement_id != 'ISO' and measurement_id != 'ISOCOR' and measurement_id != 'AUTO' and measurement_id != 'BEST' and measurement_id != 'APER' and measurement_id != 'PETRO':
+         #   print('The inputed parameter does not correspond to any existing SExtractor parameters. Setting to default.')
+        #    self.measurement_id = 'ISOCOR'
+        #else:
+        self.measurement_id = measurement_id
             
-        self.marker = '_'+rule[:-6]
+        self.marker = '_C'+rule.split('C')[1][0]
         #self.aper_size = 5
-        self.raw_data = pd.read_pickle(self.workdir+self.name+'_files/'+self.name+self.marker+'_photo.pkl') #.sort_values("MJD")
+        self.raw_data = pd.read_pickle('./'+self.workdir+self.name+'_files/'+self.name+self.marker+'_photo.pkl') #.sort_values("MJD")
 
         self.all_stars = np.unique(self.raw_data.id_apass)
 
@@ -362,7 +365,12 @@ class Analysis:
     def ccd_noise(self,image=0,aper=5):
         #aper+=4
         fl2 = self.raw_data.flname.values[image]
-        fl1 = self.workdir+self.catalogue+fl2.split('/')[-1][:-5]+'_cat.fits'
+        #fl1 = self.workdir+self.catalogue+fl2.split('/')[-1][:-5]+'_cat.fits'
+        fln = fl2.split('/')[-1]
+        if fln[-3:] == 'its':
+            fl1 = self.workdir+self.catalogue+fln.split(".fits")[0]+"_cat.fits"
+        else:
+            fl1 = self.workdir+self.catalogue+fln.split(".fit")[0]+"_cat.fits"
         aperture = self.apertures[aper]
         #print(self.apertures[aper-4]/2,self.apertures[aper]/2)
         #print((self.apertures[aper-4]/self.apertures[aper]))
