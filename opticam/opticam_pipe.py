@@ -225,7 +225,7 @@ class Reduction:
 #        fl1 = self.workdir+self.catalogue+fln.split(".fits")[0]+"_cat.fits"
 #>>>>>>> cde02a02d08f9c79090f6aacc7062daf6e4f0152
         fl2 = self.workdir+self.rawdata+fln
-        print(fl1)
+        #print(fl1)
 
         data = fits.getdata(fl1)
 
@@ -261,6 +261,9 @@ class Reduction:
             ' position is: X= {:4.0f}, Y={:4.0f}'.format(self.tar_x,self.tar_y))
 
 #%%
+
+    
+    
     def photometry(self):
         """
         Creates a single output file from all the catalogues. 
@@ -285,7 +288,7 @@ class Reduction:
         num_flns = len(self.flns)
 
         lco_log = Path(self.workdir+self.name+'_files/'+self.photo_file+'.csv')
-        print(lco_log)
+        #print(lco_log)
 
         if lco_log.exists():
             print('Photometry file already exists')
@@ -301,6 +304,15 @@ class Reduction:
             check_flag = False
         print("OPTICAM - Light curve generator")
         
+        if 'C1' in self.rule:
+            pixscale = 0.1397
+        elif 'C2' in self.rule:
+            pixscale = 0.1406
+        elif 'C3' in self.rule:
+            pixscale =0.1661
+        else:
+            pixscale = 0.14
+        
         for i,flname in enumerate(self.flns[:]):
             flnt = flname.split('/')[-1]
             if flnt.split('.')[-1] == 'fits':
@@ -309,7 +321,7 @@ class Reduction:
                 flnt2 = flnt[:-4]+'_cat.fits'
                 
             cat_flname = self.workdir+self.catalogue+flnt2
-            print(flname,cat_flname)
+            #print(flname,cat_flname)
             if check_flag :
                 if vrb: print(flname+" exists")
             else:
@@ -326,7 +338,17 @@ class Reduction:
                 airmass = fits.getval(flname,"AIRMASS",0)
                 naxis1 = fits.getval(flname,"NAXIS1",0)
                 naxis2 = fits.getval(flname,"NAXIS2",0)
-                pixscale = 0.14
+                try: 
+                    xbin= fits.getval(flname,"CCDXBIN",0)
+                    ybin= fits.getval(flname,"CCDYBIN",0)
+                    if xbin==ybin:
+                        pixscale *=xbin
+                    else:
+                        print("Warning: different binning per axis")
+                except:
+                    print("Warning: Binning not found in the header, FWHM not trustable")
+                    
+                
                 #creating a mask to elimitate 0 FWHM data
                 msk = np.argwhere(fits.getdata(cat_flname).FWHM_IMAGE >0 ).T[0]
                 PSF_FWHM = np.median(fits.getdata(cat_flname).FWHM_IMAGE[msk])
