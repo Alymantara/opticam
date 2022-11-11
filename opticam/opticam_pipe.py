@@ -262,7 +262,124 @@ class Reduction:
 
 #%%
 
-    
+    def movie(self):
+        """
+        Create a movie with all the images and the target cross matched. 
+        This is based in the photometry method.
+        """
+        self.photo_file = self.name+self.marker+'_photo' #+'_'+self.measurement_id
+        apass = pd.read_csv(self.workdir+self.name+'_files/'+self.name+self.marker+'_ref_stars.csv',
+            comment="#")
+        apass.set_index('id')
+
+        vrb = True #verbose, Default=True
+        save_output = True
+
+        save_standards = True
+        save_target = True
+
+        PIX_EDGE = 30
+        
+        coo_apass = SkyCoord(apass['x']/1000.*u.deg, apass['y']/1000*u.deg)
+
+        num_flns = len(self.flns)
+
+        mov_fl = Path(self.workdir+self.name+'_files/'+self.name+self.marker+'_ref_stars.mov')
+        print(mov_fl)
+
+        if mov_fl.exists():
+            print('Video file already exists')
+            check_flag = True
+        else:
+            dd = {'flname': [], 'id_apass': [],'Filter': [],'MJD': [],
+                 'flux': [],'flux_err': [],'mag': [],'mag_err': []
+                 }
+
+            sta = pd.DataFrame(data=dd)
+            df3 = {}
+            id3 = 0
+            check_flag = False
+        print("OPTICAM - Light curve generator")
+        
+        for i,flname in enumerate(self.flns[:]):
+            flnt = flname.split('/')[-1]
+            if flnt.split('.')[-1] == 'fits':
+                flnt2 = flnt[:-5]+'_cat.fits'
+            elif flnt.split('.')[-1] == 'fit':
+                flnt2 = flnt[:-4]+'_cat.fits'
+                
+            cat_flname = self.workdir+self.catalogue+flnt2
+            #print(flname,cat_flname)
+            if check_flag :
+                if vrb: print(flname+" exists")
+            else:
+                print("Processing {:5.0f} / {:5.0f} : {}".format(i+1,num_flns,
+                        flname.split('/')[-1]))
+
+                filt = fits.getval(flname,"FILTER",0)
+                #obj = fits.getval(flname,"OBJECT",0)
+                exptime = fits.getval(flname,"EXPOSURE",0)
+                try: mjd_t = fits.getval(flname,"GPSTIME",0)[:-5]
+                except: mjd_t = fits.getval(flname,"UT",0)
+                mjd_t = mjd_t.replace(' ', 'T')
+                mjd = Time(mjd_t, format='fits', scale='utc').mjd
+                airmass = fits.getval(flname,"AIRMASS",0)
+                naxis1 = fits.getval(flname,"NAXIS1",0)
+                naxis2 = fits.getval(flname,"NAXIS2",0)
+                pixscale = 0.14
+                #creating a mask to elimitate 0 FWHM data
+                msk = np.argwhere(fits.getdata(cat_flname).FWHM_IMAGE >0 ).T[0]
+                PSF_FWHM = np.median(fits.getdata(cat_flname).FWHM_IMAGE[msk])
+                try:
+                    seeing = fits.getval(flname,"L1FWHM",0)
+                except:
+                    seeing = PSF_FWHM*pixscale
+                if seeing == "UNKNOWN": seeing = PSF_FWHM*pixscale
+                if vrb: print("Seeing = {:7.3f} arcsec".format(seeing))
+                if vrb: print("PSF FWHM = {:7.3f} arcsec".format(PSF_FWHM*pixscale))
+                data = fits.getdata(cat_flname)
+
+
+                #### Align images #####
+                d_x,d_y = 0.0,0.0
+
+                if i==0:
+                    c_ref = np.array([data['X_IMAGE'],data['Y_IMAGE']]).T
+                else:
+                    c_tar = np.array([data['X_IMAGE'],data['Y_IMAGE']]).T
+                    try:
+                        p, (pos_img, pos_img_rot) = aa.find_transform(c_ref, c_tar)
+                        d_x,d_y = p.translation[0],p.translation[1]
+                        print("Translation: (x, y) = ({:.2f}, {:.2f})".format(*p.translation))
+                    except: 
+                        print('WARNING! >> List of matching triangles exhausted before an acceptable transformation was found?!?!')
+                    
+
+                coo_image = SkyCoord((data['X_IMAGE']-d_x)/1000*u.deg, 
+                                     (data['Y_IMAGE']-d_y)/1000*u.deg)
+
+                if vrb: print("Filter: {}".format(filt))
+
+                idx_apass, d2d_apass, d3d_apass = coo_image.match_to_catalog_sky(coo_apass) #
+
+                # Make mask due to separation
+                ss = (d2d_apass.deg*1000 < 2)
+                
+                pp = np.isfinite(np.array(mag_ISO)[0][ss]) & \
+                     (data['X_IMAGE'][ss] > PIX_EDGE ) & \
+                     (data['X_IMAGE'][ss] < naxis1 -PIX_EDGE)  & \
+                     (data['Y_IMAGE'][ss] > PIX_EDGE ) & \
+                     (data['Y_IMAGE'][ss] < naxis2 -PIX_EDGE )
+                
+
+                for jj in np.arange(pp.sum()):
+                            df3[id3] = {'flname': flname, 'id_apass':apass.id.iloc[std_mag[ss][pp].index.values[jj]],
+                                 'Filter': filt,'MJD': mjd+exptime/86400./2.,
+                                 'epoch':i,
+                                 'flux_ISO': flux_ISO[0][ss][pp][jj],}
+                return (ss,pp,jj,data)
+
+        pass
     
     def photometry(self):
         """
