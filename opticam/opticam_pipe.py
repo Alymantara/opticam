@@ -365,6 +365,20 @@ class Reduction:
                 # Make mask due to separation
                 ss = (d2d_apass.deg*1000 < 2)
                 
+                std_mag = apass['x'][idx_apass]
+                ## %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+                measurement_id_list = ['ISO', 'ISOCOR', 'APER', 'AUTO', 'BEST', 'PETRO']
+                flux_ISO = []
+                flux_ISO_err = []
+                mag_ISO = []
+                mag_ISO_err = []
+                
+                flux_ISO.append(data['FLUX_ISO'])
+                flux_ISO_err.append(data['FLUXERR_ISO'])
+                mag_ISO.append(data['MAG_ISO'] + 2.5 * np.log10(exptime))
+                mag_ISO_err.append(data['MAGERR_ISO'])
+                
+                
                 pp = np.isfinite(np.array(mag_ISO)[0][ss]) & \
                      (data['X_IMAGE'][ss] > PIX_EDGE ) & \
                      (data['X_IMAGE'][ss] < naxis1 -PIX_EDGE)  & \
@@ -372,12 +386,12 @@ class Reduction:
                      (data['Y_IMAGE'][ss] < naxis2 -PIX_EDGE )
                 
 
-                for jj in np.arange(pp.sum()):
-                            df3[id3] = {'flname': flname, 'id_apass':apass.id.iloc[std_mag[ss][pp].index.values[jj]],
-                                 'Filter': filt,'MJD': mjd+exptime/86400./2.,
-                                 'epoch':i,
-                                 'flux_ISO': flux_ISO[0][ss][pp][jj],}
-                return (ss,pp,jj,data)
+                #for jj in np.arange(pp.sum()):
+                #            df3[id3] = {'flname': flname, 'id_apass':apass.id.iloc[std_mag[ss][pp].index.values[jj]],
+                #                 'Filter': filt,'MJD': mjd+exptime/86400./2.,
+                #                 'epoch':i,
+                #                 'flux_ISO': flux_ISO[0][ss][pp][jj],}
+                return (ss,pp,data)
 
         pass
     
@@ -422,13 +436,13 @@ class Reduction:
         print("OPTICAM - Light curve generator")
         
         if 'C1' in self.rule:
-            pixscale = 0.1397
+            ccd_pixscale = 0.1397
         elif 'C2' in self.rule:
-            pixscale = 0.1406
+            ccd_pixscale = 0.1406
         elif 'C3' in self.rule:
-            pixscale =0.1661
+            ccd_pixscale =0.1661
         else:
-            pixscale = 0.14
+            ccd_pixscale = 0.14
         
         for i,flname in enumerate(self.flns[:]):
             flnt = flname.split('/')[-1]
@@ -459,7 +473,7 @@ class Reduction:
                     xbin= fits.getval(flname,"CCDXBIN",0)
                     ybin= fits.getval(flname,"CCDYBIN",0)
                     if xbin==ybin:
-                        pixscale *=xbin
+                        pixscale = ccd_pixscale * xbin
                     else:
                         print("Warning: different binning per axis")
                 except:
