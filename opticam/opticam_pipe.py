@@ -267,6 +267,7 @@ class Reduction:
         Create a movie with all the images and the target cross matched. 
         This is based in the photometry method.
         """
+        import gc as mpl
         self.photo_file = self.name+self.marker+'_photo' #+'_'+self.measurement_id
         apass = pd.read_csv(self.workdir+self.name+'_files/'+self.name+self.marker+'_ref_stars.csv',
             comment="#")
@@ -284,7 +285,7 @@ class Reduction:
 
         num_flns = len(self.flns)
 
-        mov_fl = Path(self.workdir+self.name+'_files/'+self.name+self.marker+'_ref_stars.mov')
+        mov_fl = Path(self.workdir+self.name+'_files/'+self.name+self.marker+'_ref_stars.gif')
         print(mov_fl)
 
         if mov_fl.exists():
@@ -299,9 +300,19 @@ class Reduction:
             df3 = {}
             id3 = 0
             check_flag = False
-        print("OPTICAM - Light curve generator")
+        print("OPTICAM - Movie curve generator")
+        
+        if 'C1' in self.rule:
+            ccd_pixscale = 0.1397
+        elif 'C2' in self.rule:
+            ccd_pixscale = 0.1406
+        elif 'C3' in self.rule:
+            ccd_pixscale =0.1661
+        else:
+            ccd_pixscale = 0.14
         
         for i,flname in enumerate(self.flns[:]):
+            k=i
             flnt = flname.split('/')[-1]
             if flnt.split('.')[-1] == 'fits':
                 flnt2 = flnt[:-5]+'_cat.fits'
@@ -326,8 +337,18 @@ class Reduction:
                 airmass = fits.getval(flname,"AIRMASS",0)
                 naxis1 = fits.getval(flname,"NAXIS1",0)
                 naxis2 = fits.getval(flname,"NAXIS2",0)
-                pixscale = 0.14
-                #creating a mask to elimitate 0 FWHM data
+                try: 
+                    xbin= fits.getval(flname,"CCDXBIN",0)
+                    ybin= fits.getval(flname,"CCDYBIN",0)
+                    if xbin==ybin:
+                        pixscale = ccd_pixscale * xbin
+                    else:
+                        pixscale = ccd_pixscale
+                        print("Warning: different binning per axis")
+                except:
+                    pixscale= ccd_pixscale
+                    print("Warning: Binning not found in the header, FWHM not trustable")
+                   
                 msk = np.argwhere(fits.getdata(cat_flname).FWHM_IMAGE >0 ).T[0]
                 PSF_FWHM = np.median(fits.getdata(cat_flname).FWHM_IMAGE[msk])
                 try:
@@ -391,7 +412,49 @@ class Reduction:
                 #                 'Filter': filt,'MJD': mjd+exptime/86400./2.,
                 #                 'epoch':i,
                 #                 'flux_ISO': flux_ISO[0][ss][pp][jj],}
-                return (ss,pp,data)
+                
+                #if i == 0:
+                fig = plt.figure(figsize=(14,14))
+                #    ims = []
+                gc = aplpy.FITSFigure(flname,hdu=0,figure=fig,animated=True)
+                gc.show_grayscale(pmin=40,pmax=99,stretch="log",invert=True)
+                
+                x_im, y_im = data['X_IMAGE']+d_x, data['Y_IMAGE']+d_y
+
+                gc.show_circles(x_im, y_im , radius=13,color='g',lw=3,animated=True)
+
+                for i in range(data['X_IMAGE'].size):
+                    plt.text(x_im[i]+5, y_im[i]+5,data['NUMBER'][i],fontsize='large',animated=True)
+                    
+                plt.text(10,10,flname.split('/')[-1],fontsize='large')    
+                plt.title('Airmass: {:.2f} SEEING: {:.2f}'.format(airmass,seeing))
+                
+                #ims.append([gc])
+                #if i == 24: continue
+                gc.savefig(self.workdir+self.name+'_files/fov{:1.0f}.jpg'.format(k))
+                print(k)
+                plt.close('all')
+                plt.clf()
+                mpl.collect() #this is to release the memory
+                
+                
+                #return (ss,pp,data)
+           
+        import glob
+        from PIL import Image
+        frames = [Image.open(image) for image in glob.glob(self.workdir+self.name+'_files/*.jpg')]
+        frame_one = frames[0]
+                                                          
+        frame_one.save(self.workdir+self.name+'_files/'+self.name+self.marker+'_fov.gif', format="GIF", append_images=frames, save_all=True, fps=5, loop=0)
+        #from matplotlib.animation import FuncAnimation, PillowWriter, ArtistAnimation
+        
+        #ani = animation.ArtistAnimation(fig, ims, interval=50, blit=True,
+         #                       repeat_delay=0)
+        
+        #writer = PillowWriter(fps=25)
+        #ani.save("test.gif", writer=writer)
+                
+                
 
         pass
     
@@ -475,8 +538,10 @@ class Reduction:
                     if xbin==ybin:
                         pixscale = ccd_pixscale * xbin
                     else:
+                        pixscale = ccd_pixscale
                         print("Warning: different binning per axis")
                 except:
+                    pixscale= ccd_pixscale
                     print("Warning: Binning not found in the header, FWHM not trustable")
                     
                 
