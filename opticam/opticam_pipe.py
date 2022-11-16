@@ -11,6 +11,8 @@ import aplpy
 from astropy.time import Time
 import astroalign as aa
 import sys
+from .misc import * #this is to sort the text using the numbers in it
+        
 #%%%
 class Reduction:
     '''
@@ -404,7 +406,16 @@ class Reduction:
                 mag_ISO.append(data['MAG_ISO'] + 2.5 * np.log10(exptime))
                 mag_ISO_err.append(data['MAGERR_ISO'])
                 
+                flux_APER = []
+                flux_APER_err = []
+                mag_APER = []
+                mag_APER_err = []
                 
+                flux_APER.append(data['FLUX_APER'])
+                flux_APER_err.append(data['FLUXERR_APER'])
+                mag_APER.append(data['MAG_APER'] + 2.5 * np.log10(exptime))
+                mag_APER_err.append(data['MAGERR_APER'])
+
                 pp = np.isfinite(np.array(mag_ISO)[0][ss]) & \
                      (data['X_IMAGE'][ss] > PIX_EDGE ) & \
                      (data['X_IMAGE'][ss] < naxis1 -PIX_EDGE)  & \
@@ -424,11 +435,11 @@ class Reduction:
                 gc = aplpy.FITSFigure(flname,hdu=0,figure=fig,animated=True)
                 gc.show_grayscale(pmin=40,pmax=99,stretch="log",invert=True)
                 
-                print(len(data['X_IMAGE']))
-                print(len(ss))
-                print(len(pp))
-                print(len(idx_apass))
-                print(data['X_IMAGE'])
+                #print(len(data['X_IMAGE']))
+                #print(len(ss))
+                #print(len(pp))
+                #print(len(idx_apass))
+                #print(data['X_IMAGE'])
                 #x_im, y_im = data['X_IMAGE'][idx_apass]+d_x, data['Y_IMAGE'][idx_apass]+d_y
                 x_im, y_im = data['X_IMAGE'][ss][pp]+d_x, data['Y_IMAGE'][ss][pp]+d_y
 
@@ -438,7 +449,7 @@ class Reduction:
                 #gc.show_circles(x_tar, y_tar , radius=13.5,color='r',lw=3,animated=True)
 
                 for l in range(x_im.size):
-                    plt.text(x_im[l]+5, y_im[l]+5,apass.id.iloc[std_mag[ss][pp].index.values[l]],fontsize='large',animated=True)
+                    plt.text(x_im[l]+5, y_im[l]+5,int(apass.id.iloc[std_mag[ss][pp].index.values[l]]),fontsize='large',animated=True)
                     
                 plt.text(10,10,flname.split('/')[-1],fontsize='large')    
                 plt.title('Airmass: {:.2f} SEEING: {:.2f}'.format(airmass,seeing))
@@ -456,10 +467,15 @@ class Reduction:
            
         import glob
         from PIL import Image
-        frames = [Image.open(image) for image in glob.glob(self.workdir+self.name+'_files/*.jpg')]
+        lis = [li.split('/')[-1] for li in glob.glob(self.workdir+self.name+'_files/*.jpg')]
+        lis.sort(key=natural_keys)
+        frames = [Image.open(self.workdir+self.name+'_files/'+image) for image in lis]
         frame_one = frames[0]
                                                           
         frame_one.save(self.workdir+self.name+'_files/'+self.name+self.marker+'_fov.gif', format="GIF", append_images=frames, save_all=True, fps=5, loop=0)
+        
+        #removing the temporal files
+        os.system('rm '+self.workdir+self.name+'_files/*.jpg')
         #from matplotlib.animation import FuncAnimation, PillowWriter, ArtistAnimation
         
         #ani = animation.ArtistAnimation(fig, ims, interval=50, blit=True,
@@ -470,7 +486,7 @@ class Reduction:
                 
                 
 
-        pass
+        #pass
     
     def photometry(self):
         """
