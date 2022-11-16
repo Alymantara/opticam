@@ -262,10 +262,12 @@ class Reduction:
 
 #%%
 
-    def movie(self):
+    def movie(self,target_id=None):
         """
         Create a movie with all the images and the target cross matched. 
         This is based in the photometry method.
+        
+        target_id: index of the target in the reference image
         """
         import gc as mpl
         self.photo_file = self.name+self.marker+'_photo' #+'_'+self.measurement_id
@@ -386,6 +388,9 @@ class Reduction:
                 # Make mask due to separation
                 ss = (d2d_apass.deg*1000 < 2)
                 
+                
+                print(idx_apass, d2d_apass, d3d_apass)
+                #pass 
                 std_mag = apass['x'][idx_apass]
                 ## %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
                 measurement_id_list = ['ISO', 'ISOCOR', 'APER', 'AUTO', 'BEST', 'PETRO']
@@ -419,12 +424,21 @@ class Reduction:
                 gc = aplpy.FITSFigure(flname,hdu=0,figure=fig,animated=True)
                 gc.show_grayscale(pmin=40,pmax=99,stretch="log",invert=True)
                 
-                x_im, y_im = data['X_IMAGE']+d_x, data['Y_IMAGE']+d_y
+                print(len(data['X_IMAGE']))
+                print(len(ss))
+                print(len(pp))
+                print(len(idx_apass))
+                print(data['X_IMAGE'])
+                #x_im, y_im = data['X_IMAGE'][idx_apass]+d_x, data['Y_IMAGE'][idx_apass]+d_y
+                x_im, y_im = data['X_IMAGE'][ss][pp]+d_x, data['Y_IMAGE'][ss][pp]+d_y
 
                 gc.show_circles(x_im, y_im , radius=13,color='g',lw=3,animated=True)
+                #x_tar,y_tar = x_im[target_id], y_im[target_id]
+                #print(x_tar,y_tar)
+                #gc.show_circles(x_tar, y_tar , radius=13.5,color='r',lw=3,animated=True)
 
-                for i in range(data['X_IMAGE'].size):
-                    plt.text(x_im[i]+5, y_im[i]+5,data['NUMBER'][i],fontsize='large',animated=True)
+                for l in range(x_im.size):
+                    plt.text(x_im[l]+5, y_im[l]+5,apass.id.iloc[std_mag[ss][pp].index.values[l]],fontsize='large',animated=True)
                     
                 plt.text(10,10,flname.split('/')[-1],fontsize='large')    
                 plt.title('Airmass: {:.2f} SEEING: {:.2f}'.format(airmass,seeing))
