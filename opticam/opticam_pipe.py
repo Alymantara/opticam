@@ -92,14 +92,16 @@ class Reduction:
             self.measurement_id = 'ISOCOR'
         else:
             self.measurement_id = measurement_id
+            
+        self.sizes = [3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33]
         if measurement_id == 'APER' and size is None:
             print('No apperture size imputed, setting to default (16 pixels)')
-        self.aper_ind = 13
+            self.aper_ind = 13
         if measurement_id == 'APER' and size is not None:
-            self.sizes = [3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33]
+            
             if size in self.sizes:    
                 self.aper_ind = self.sizes.index(size)
-            else:
+            else: #THIS NEED TO VE REVIEWED
                 self.aper_ind = -1
                 self.config_fl_name = self.config_fl_name.split('.')[0]+'_edit.sex'
                 self.edit_sex_param(self.config_fl_name, ['PHOT_APERTURES'], [size])
@@ -264,24 +266,29 @@ class Reduction:
 
 #%%
 
-    def movie(self,target_id=None):
+    def movie(self,target_id=None,clean_tmp=True):
         """
         Create a movie with all the images and the target cross matched. 
         This is based in the photometry method.
         
         target_id: index of the target in the reference image
+                    
+        clean_tmp: remove all the individual frames. Default = True
         """
         import gc as mpl
         self.photo_file = self.name+self.marker+'_photo' #+'_'+self.measurement_id
         apass = pd.read_csv(self.workdir+self.name+'_files/'+self.name+self.marker+'_ref_stars.csv',
             comment="#")
         apass.set_index('id')
+        
+        #if there is no target id we set it to 1 as default
+        if not target_id:
+            target_id = 1
+                
 
         vrb = True #verbose, Default=True
         save_output = True
 
-        save_standards = True
-        save_target = True
 
         PIX_EDGE = 30
         
@@ -304,6 +311,11 @@ class Reduction:
             df3 = {}
             id3 = 0
             check_flag = False
+        
+        if check_flag: 
+            print("File already exist")
+            return 
+    
         print("OPTICAM - Movie curve generator")
         
         if 'C1' in self.rule:
@@ -401,8 +413,8 @@ class Reduction:
                 mag_ISO = []
                 mag_ISO_err = []
                 
-                flux_ISO.append(data['FLUX_ISO'])
-                flux_ISO_err.append(data['FLUXERR_ISO'])
+                flux_ISO.append(data['FLUX_ISO']/exptime)
+                flux_ISO_err.append(data['FLUXERR_ISO']/exptime)
                 mag_ISO.append(data['MAG_ISO'] + 2.5 * np.log10(exptime))
                 mag_ISO_err.append(data['MAGERR_ISO'])
                 
@@ -411,8 +423,8 @@ class Reduction:
                 mag_APER = []
                 mag_APER_err = []
                 
-                flux_APER.append(data['FLUX_APER'])
-                flux_APER_err.append(data['FLUXERR_APER'])
+                flux_APER.append(data['FLUX_APER']/exptime)
+                flux_APER_err.append(data['FLUXERR_APER']/exptime)
                 mag_APER.append(data['MAG_APER'] + 2.5 * np.log10(exptime))
                 mag_APER_err.append(data['MAGERR_APER'])
 
@@ -423,39 +435,49 @@ class Reduction:
                      (data['Y_IMAGE'][ss] < naxis2 -PIX_EDGE )
                 
 
-                #for jj in np.arange(pp.sum()):
-                #            df3[id3] = {'flname': flname, 'id_apass':apass.id.iloc[std_mag[ss][pp].index.values[jj]],
-                #                 'Filter': filt,'MJD': mjd+exptime/86400./2.,
-                #                 'epoch':i,
-                #                 'flux_ISO': flux_ISO[0][ss][pp][jj],}
-                
-                #if i == 0:
+                #creating individual plots for each image
                 fig = plt.figure(figsize=(14,14))
-                #    ims = []
+                
                 gc = aplpy.FITSFigure(flname,hdu=0,figure=fig,animated=True)
                 gc.show_grayscale(pmin=40,pmax=99,stretch="log",invert=True)
                 
-                #print(len(data['X_IMAGE']))
-                #print(len(ss))
-                #print(len(pp))
-                #print(len(idx_apass))
-                #print(data['X_IMAGE'])
-                #x_im, y_im = data['X_IMAGE'][idx_apass]+d_x, data['Y_IMAGE'][idx_apass]+d_y
+                
                 x_im, y_im = data['X_IMAGE'][ss][pp]+d_x, data['Y_IMAGE'][ss][pp]+d_y
 
                 gc.show_circles(x_im, y_im , radius=13,color='g',lw=3,animated=True)
-                #x_tar,y_tar = x_im[target_id], y_im[target_id]
-                #print(x_tar,y_tar)
-                #gc.show_circles(x_tar, y_tar , radius=13.5,color='r',lw=3,animated=True)
-
+                
+                #here we write the src index in each image corresponding to the reference image
+                #we also identify the src index in the current image to substract the flux later. This is src_idx
+                src_idx = None #reset this for each loop 
                 for l in range(x_im.size):
-                    plt.text(x_im[l]+5, y_im[l]+5,int(apass.id.iloc[std_mag[ss][pp].index.values[l]]),fontsize='large',animated=True)
+                    plt.text(x_im[l]+6, y_im[l]+6,int(apass.id.iloc[std_mag[ss][pp].index.values[l]]),fontsize='large',animated=True)
+                    
+                    #rule 
+                    if std_mag[ss][pp].index.values[l] == target_id-1:
+                        gc.show_circles(x_im[l], y_im[l] , radius=14,color='r',lw=5,animated=True)
+                        src_idx = l
+                        
                     
                 plt.text(10,10,flname.split('/')[-1],fontsize='large')    
-                plt.title('Airmass: {:.2f} SEEING: {:.2f}'.format(airmass,seeing))
                 
-                #ims.append([gc])
-                #if i == 24: continue
+                    
+                
+                
+                #print()
+                #print(self.aper_ind)
+                #print(np.shape(mag_APER_err))
+                #print(np.shape(pp),np.shape(pp))
+                #print(mag_APER_err)
+                #m_pl = mag_APER[0][:,self.aper_ind][ss][pp]
+                #em_pl = mag_APER_err[0][:,self.aper_ind][ss][pp]
+                m_pl = flux_APER[0][:,self.aper_ind][ss][pp]
+                em_pl = flux_APER_err[0][:,self.aper_ind][ss][pp]
+                #this is the size of the aperture in arcsec
+                aper_size = pixscale * self.sizes[self.aper_ind]
+                #plt.title('Airmass: {:.2f} SEEING: {:.2f} MAG aper: {:.2f} +/- {:.2f}, aper: {:.2f} arcsec'.format(airmass,seeing,m_pl[src_idx],em_pl[src_idx],aper_size))
+                plt.title('Airmass: {:.2f} SEEING: {:.2f} Flux aper: {:.2e} +/- {:.2e}, aper: {:.2f} arcsec'.format(airmass,seeing,m_pl[src_idx],em_pl[src_idx],aper_size))
+                
+                #return src_idx
                 gc.savefig(self.workdir+self.name+'_files/fov{:1.0f}.jpg'.format(k))
                 print(k)
                 plt.close('all')
@@ -463,8 +485,8 @@ class Reduction:
                 mpl.collect() #this is to release the memory
                 
                 
-                #return (ss,pp,data)
-           
+                
+        #creating the gif from jpgs   
         import glob
         from PIL import Image
         lis = [li.split('/')[-1] for li in glob.glob(self.workdir+self.name+'_files/*.jpg')]
@@ -475,18 +497,13 @@ class Reduction:
         frame_one.save(self.workdir+self.name+'_files/'+self.name+self.marker+'_fov.gif', format="GIF", append_images=frames, save_all=True, fps=5, loop=0)
         
         #removing the temporal files
-        os.system('rm '+self.workdir+self.name+'_files/*.jpg')
-        #from matplotlib.animation import FuncAnimation, PillowWriter, ArtistAnimation
+        if clean_tmp: 
+            os.system('rm '+self.workdir+self.name+'_files/*.jpg')
         
-        #ani = animation.ArtistAnimation(fig, ims, interval=50, blit=True,
-         #                       repeat_delay=0)
-        
-        #writer = PillowWriter(fps=25)
-        #ani.save("test.gif", writer=writer)
                 
                 
 
-        #pass
+        
     
     def photometry(self):
         """
