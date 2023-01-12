@@ -12,6 +12,7 @@ from itertools import permutations
 import pandas as pd
 #import os
 #import aplpy
+from .misc import *
 
 #from astropy.time import Time
 #from statistics import mode
@@ -497,27 +498,10 @@ class Analysis:
             if c == len(self.all_stars)-1:
                 plt.show()
                 c = 0
+                
     def forced_photo(self):
         #self.
         pass 
-
-def snr(rate,bkg,time,npix,rn,gain,dark=0.0,binning=1):
-    source = rate * time
-    shot_noise = rate * time
-    sky_noise = bkg * npix * time*binning
-    ro_noise = (rn**2 + (gain/2.0)**2 * npix*binning)
-    dark_noise = dark * npix * time*binning
-    
-    return source / np.sqrt(shot_noise + sky_noise + ro_noise + dark_noise)
-
-def snr_all(rate,bkg,time,npix,rn,gain,dark=0.0,binning=1):
-    source = rate * time
-    shot_noise = rate * time
-    sky_noise = bkg * npix * time * binning
-    ro_noise = (rn**2 + (gain/2.0)**2 * npix)*binning
-    dark_noise = dark * npix * time * binning
-    
-    return source / np.sqrt(shot_noise ), source / np.sqrt(sky_noise),source / np.sqrt(ro_noise), source / np.sqrt(dark_noise)
 
 
     

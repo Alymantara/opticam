@@ -399,7 +399,7 @@ class Reduction:
                 ss = (d2d_apass.deg*1000 < 2)
                 
                 
-                print(idx_apass, d2d_apass, d3d_apass)
+                #print(idx_apass, d2d_apass, d3d_apass)
                 #pass 
                 std_mag = apass['x'][idx_apass]
                 ## %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -501,24 +501,28 @@ class Reduction:
 
         
     
-    def photometry(self):
+    def photometry(self,PIX_EDGE = 30, vrb = True, save_output = True,save_standards = True,save_target = True):
         """
         Creates a single output file from all the catalogues. 
         Cross-matches the positions of each catalogue and assigns
         every star its unique identifier.
+        
+        PIX_EDGE: int, optional
+            This avoid all the detections close to the edge of the CCD 
+            default: ~4arsec ~30 pix 
         """
         self.photo_file = self.name+self.marker+'_photo' #+'_'+self.measurement_id
         apass = pd.read_csv(self.workdir+self.name+'_files/'+self.name+self.marker+'_ref_stars.csv',
             comment="#")
         apass.set_index('id')
 
-        vrb = True #verbose, Default=True
-        save_output = True
+         #verbose, Default=True
+        
 
-        save_standards = True
-        save_target = True
+        
+        
 
-        PIX_EDGE = 30
+        
         
         coo_apass = SkyCoord(apass['x']/1000.*u.deg, apass['y']/1000*u.deg)
 
