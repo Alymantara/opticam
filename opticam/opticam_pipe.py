@@ -106,6 +106,8 @@ class Reduction:
                 self.config_fl_name = self.config_fl_name.split('.')[0]+'_edit.sex'
                 self.edit_sex_param(self.config_fl_name, ['PHOT_APERTURES'], [size])
                 
+        self.path_ref_list = False #inicializing the reference stars list
+        
         self.rule = rule
         self.marker = '_C'+rule.split('C')[1][0]
         self.flns = self.get_files(self.rule)
@@ -245,7 +247,9 @@ class Reduction:
         df = pd.DataFrame(data=np.array([data['NUMBER'],
                                 data['X_IMAGE'],
                                 data['Y_IMAGE']]).T,columns=["id", "x","y"])
-        df.to_csv(self.workdir+self.name+'_files/'+self.name+self.marker+'_ref_stars.csv',  index_label=False,index=False)
+        
+        self.path_ref_list = self.workdir+self.name+'_files/'+self.name+self.marker+'_ref_stars.csv'
+        df.to_csv(self.path_ref_list,  index_label=False,index=False)
 
         self.ref_stars = df
 
@@ -530,6 +534,8 @@ class Reduction:
 
         lco_log = Path(self.workdir+self.name+'_files/'+self.photo_file+'.csv')
         #print(lco_log)
+        
+        df3 = {}
 
         if lco_log.exists():
             print('Photometry file already exists')
@@ -540,7 +546,7 @@ class Reduction:
                  }
 
             sta = pd.DataFrame(data=dd)
-            df3 = {}
+            
             id3 = 0
             check_flag = False
         print("OPTICAM - Light curve generator")
@@ -706,7 +712,7 @@ class Reduction:
                      (data['Y_IMAGE'][ss] < naxis2 -PIX_EDGE )
                 
 
-                if vrb: print("Numer of Absolute calibration stars {}".format(pp.sum()))
+                if vrb: print("Number of Absolute detected stars {} \n ".format(pp.sum()))
 
                 if ((pp.sum() >= 3)) & save_target:
                    if save_standards:
@@ -745,7 +751,7 @@ class Reduction:
                             #print()
                             id3 += 1
         #############################################################################################
-                
+        if (len(df3) >= 1) & save_target:
                 sta = pd.DataFrame.from_dict(df3,"index")
                 sta = sta.sort_values(by=['id_apass','epoch'])
 
@@ -753,5 +759,35 @@ class Reduction:
                     sta.to_csv(self.name+'_files/'+self.photo_file+".csv")
                     sta.to_pickle(self.name+'_files/'+self.photo_file+".pkl")
                     
+                    print('Files saved in '+self.name+'_files/'+self.photo_file)
+                    
+                    self.out_df = sta 
+                    
+            
+                    
+                #here we update the targets that are saved but not detected in all the images
+                if self.path_ref_list:
+                    if vrb: 
+                        print('adding number of detections to the id catalogue')
+                        
+                    
+                    df_t = pd.read_csv(self.path_ref_list) #we load theref_star file
+                    #n=np.zeros(len(df_t['id'])
+                    df_t['detections']= np.zeros(len(df_t['id']))  #we wet all the observations to 0
+                    for i in self.out_df.id_apass.unique(): #we sort the ids to match the reference file order
+                        #n.append(len(self.out_df[(self.out_df.id_apass == i)]))
+                               
+                        n_i = len(self.out_df[(self.out_df.id_apass == i)]) #number of detections of the i istar in the catalogue
+                               
+                        ID = np.argwhere(df_t['id'].values == i)
+                        df_t['detections'][ID]= n_i 
+                    
+                    
+                                 
+                    df_t.to_csv(self.path_ref_list)
+                                 
+                    if vrb: print('Done')
+                    
+                  
                 
 
