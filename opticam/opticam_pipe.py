@@ -779,8 +779,9 @@ class Reduction:
                                
                         n_i = len(self.out_df[(self.out_df.id_apass == i)]) #number of detections of the i istar in the catalogue
                                
-                        ID = np.argwhere(df_t['id'].values == i)
-                        df_t['detections'][ID]= n_i 
+                        #ID = np.argwhere(df_t['id'].values == i)
+                        #df_t['detections'][ID]= n_i 
+                        df_t.loc[df_t['id'].values == i, 'detections'] = n_i
                     
                     
                                  
