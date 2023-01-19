@@ -11,8 +11,10 @@ import aplpy
 from astropy.time import Time
 import astroalign as aa
 import sys
-from .misc import * #this is to sort the text using the numbers in it
-        
+from .misc import * #this is to sort the text using the numbers in it  
+from astropy.nddata import CCDData
+from astropy.table import Table
+
 #%%%
 class Reduction:
     '''
@@ -231,7 +233,8 @@ class Reduction:
 
         data = fits.getdata(fl1)
 
-        print(data.columns)
+        #print(data.columns)
+        self.path_to_ref_fits = fl2
 
         fig = plt.figure(figsize=(14,14))
         gc = aplpy.FITSFigure(fl2,hdu=0,figure=fig)
@@ -754,15 +757,8 @@ class Reduction:
         if (len(df3) >= 1) & save_target:
                 sta = pd.DataFrame.from_dict(df3,"index")
                 sta = sta.sort_values(by=['id_apass','epoch'])
-
-                if save_output & save_standards:
-                    sta.to_csv(self.name+'_files/'+self.photo_file+".csv")
-                    sta.to_pickle(self.name+'_files/'+self.photo_file+".pkl")
-                    
-                    print('Files saved in '+self.name+'_files/'+self.photo_file)
-                    
-                    self.out_df = sta 
-                    
+                
+                self.out_df = sta 
             
                     
                 #here we update the targets that are saved but not detected in all the images
@@ -788,6 +784,23 @@ class Reduction:
                     df_t.to_csv(self.path_ref_list)
                                  
                     if vrb: print('Done')
+                    
+                    #saving copying the headers of the reference image to the output files
+                    ccd = CCDData.read(self.path_to_ref_fits, unit='count')
+                    header_flag = True
+                    sta.meta= ccd.meta[6:]
+                    
+                else: header_flag = False
+                
+                if save_output & save_standards:
+                    sta.to_csv(self.name+'_files/'+self.photo_file+".csv")
+                    sta.to_pickle(self.name+'_files/'+self.photo_file+".pkl")
+                    
+                    t = Table.from_pandas(sta)
+                    t.meta = sta.meta
+                    t.write(self.name+'_files/'+self.photo_file+".fits",overwrite=True)
+                    
+                    print('Files saved in '+self.name+'_files/'+self.photo_file)
                     
                   
                 
