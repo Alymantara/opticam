@@ -243,7 +243,7 @@ class Reduction:
         gc.show_circles(data['X_IMAGE'], data['Y_IMAGE'], radius=13,color='g',lw=3)
 
         for i in range(data['X_IMAGE'].size):
-            plt.text(data['X_IMAGE'][i]+5, data['Y_IMAGE'][i]+5,data['NUMBER'][i],fontsize='large')
+            plt.text(data['X_IMAGE'][i]+10, data['Y_IMAGE'][i]+10,data['NUMBER'][i],fontsize='large')
         
         plt.show()
         gc.savefig(self.workdir+self.name+'_files/'+self.name+self.marker+'_fov.pdf')
@@ -769,7 +769,7 @@ class Reduction:
                     
                     df_t = pd.read_csv(self.path_ref_list) #we load theref_star file
                     #n=np.zeros(len(df_t['id'])
-                    df_t['detections']= np.zeros(len(df_t['id']))  #we wet all the observations to 0
+                    #df_t['n']= np.zeros(len(df_t['id']))  #we wet all the observations to 0
                     for i in self.out_df.id_apass.unique(): #we sort the ids to match the reference file order
                         #n.append(len(self.out_df[(self.out_df.id_apass == i)]))
                                
@@ -777,7 +777,7 @@ class Reduction:
                                
                         #ID = np.argwhere(df_t['id'].values == i)
                         #df_t['detections'][ID]= n_i 
-                        df_t.loc[df_t['id'].values == i, 'detections'] = n_i
+                        df_t.loc[df_t['id'].values == i, 'n'] = n_i
                     
                     
                                  
@@ -789,7 +789,7 @@ class Reduction:
                     ccd = CCDData.read(self.path_to_ref_fits, unit='count')
                     header_flag = True
                     sta.meta= ccd.meta[6:]
-                    
+                    sta.meta['Camera'] = int(self.marker[-1])
                 else: header_flag = False
                 
                 if save_output & save_standards:

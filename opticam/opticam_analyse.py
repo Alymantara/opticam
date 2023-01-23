@@ -66,7 +66,9 @@ class Analysis:
         default = 'APER'. keyword for sextractor flux measurement, see sextractor documentation for more info. 
     '''
 
-    def __init__(self,workdir=None,catalogue = None,name=None,rule = None, measurement_id='APER'):
+    def __init__(self,target_id, workdir=None,catalogue = None,name=None,rule = None, measurement_id='APER'):
+        
+        self.target_id = target_id
 
         if workdir is None: 
             self.workdir = './'
@@ -91,7 +93,23 @@ class Analysis:
             
         self.marker = '_C'+rule.split('C')[1][0]
         #self.aper_size = 5
-        self.raw_data = pd.read_pickle('./'+self.workdir+self.name+'_files/'+self.name+self.marker+'_photo.pkl') #.sort_values("MJD")
+        self.raw_data = pd.read_pickle(self.workdir+self.name+'_files/'+self.name+self.marker+'_photo.pkl') #.sort_values("MJD")
+        
+        self.path_ref_stars = self.workdir+self.name+'_files/'+self.name+self.marker+'_ref_stars.csv'
+        
+        self.df_ref_stars = pd.read_csv(self.path_ref_stars) 
+        
+        self.n_ref_stars = np.sum(~self.df_ref_stars.n.isnull()) #number of stars detected 
+        
+        self.n_target = self.df_ref_stars.loc[self.df_ref_stars.id == self.target_id,'n']
+        
+        #here we select the right identified stars with the same or more detections that our target. 
+        self.comp_stars_id = self.df_ref_stars.loc[self.df_ref_stars.n >= self.df_ref_stars.n[self.n_target.index[0]], 'id']
+        self.n_comp_stars = len(self.comp_stars_id)
+        
+        print('Removing all targets with less detections than target object\n\n')
+        m = [x in self.comp_stars_id.array for x in self.raw_data.id_apass]
+        self.raw_data = self.raw_data[m]
 
         self.all_stars = np.unique(self.raw_data.id_apass)
 
@@ -105,10 +123,22 @@ class Analysis:
         self.M_err = self.raw_data['mag_err_'+self.measurement_id]
         self.F = self.raw_data['flux_'+self.measurement_id]
         self.F_er = self.raw_data['flux_err_'+self.measurement_id]
-        print("Num Stars: {}, Num Epochs: {}".format(self.all_stars.size,self.epochs.size))
+        print("Num detected Stars: {}, \nAll Epochs: {}\n".format(self.n_ref_stars,self.epochs.size))
+        print("Target id: {}, \nNum detected Epochs: {}, \nNum of valid comparison stars: {}".format(self.target_id,self.n_target.array[0],self.n_comp_stars))
+        
+        
 
-
-    def differential_photo(self,target=None,ignore=None,save=True):
+    def photo(self,select=None,ignore=None,save=True):
+        
+        #### Only in those that the target was also detected
+        target_epochs = self.raw_data.loc[self.raw_data.id_apass == self.target_id, 'epoch']
+        
+        for epoch in target_epochs:
+            data_epoch = photo.raw_data[ self.raw_data.epoch == epoch]
+        
+        pass
+        
+    def differential_photo(self,ignore=None,save=True):
         """
         Performs the differential photometry for a specific target.
 
