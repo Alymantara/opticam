@@ -129,14 +129,80 @@ class Analysis:
         
 
     def photo(self,select=None,ignore=None,save=True):
+       """
+        Performs the differential photometry for a specific target.
+
+        Parameters
+        ----------
+        select : list or array optional
+            Star(s) to be selected as comparison stars
+
+        ignore : list or array optional
+            Star(s) to be ignored as comparison stars
+
+        save : bool, optional
+            Save the corrected photometric data for the target
+
+        """        
+        # we will first filter the selection or the ignored values from the raw_data
+        
+        if not isinstance(select,type(None)):
+            
+            m = [x in select+[self.target_id] for x in self.raw_data.id_apass]
+            data_phot = self.raw_data[m].copy()
+        
+        elif not isinstance(ignore, type(None)):
+            m = np.array([not x in ignore for x in self.raw_data.id_apass]) | np.array( [x in [self.target_id] for x in self.raw_data.id_apass])
+            data_phot = self.raw_data[m].copy()
+            
+        else:
+            data_phot = self.raw_data.copy()
+            
+        self.data_phot =  data_phot
+        
+        
+        df_dic = {'flname':[],
+                  'filter':[],
+                  'ExpTime':[],
+                  'MJD':[],
+                  'AMass':[],
+                  'target':[],
+                  'comp':[],
+                 }
+        
+        return data_phot
         
         #### Only in those that the target was also detected
-        target_epochs = self.raw_data.loc[self.raw_data.id_apass == self.target_id, 'epoch']
+        target_epochs = data_phot.loc[data_phot.id_apass == self.target_id, 'epoch']
         
         for epoch in target_epochs:
-            data_epoch = photo.raw_data[ self.raw_data.epoch == epoch]
-        
-        pass
+            data_epoch = data_phot[data_phot.epoch == epoch]
+        #    
+        #    ###not implemented for selct and ignore ####control for the number of tagrets being the same
+        #    ###not implemented for selct and ignore ###if not len(data_epoch) == self.n_comp_stars:
+        #    ###not implemented for selct and ignore ###    print('ERROR: NUMBER OF DETECTED STARS DOES NOT MATCH')
+        #    
+        #    
+        #    #self.M = self.raw_data['mag_'+self.measurement_id]
+        #    #self.M_err = self.raw_data['mag_err_'+self.measurement_id]
+        #    #self.F = self.raw_data['flux_'+self.measurement_id]
+        #    #self.F_er = self.raw_data['flux_err_'+self.measurement_id]
+        #              
+        #    msk_target_id = data_epoch.id_apass == self.target_id
+        #    
+        #    #computing the actual flux of the target
+        #    f_target = data_epoch['flux_'+self.measurement_id][msk_target_id].array[0]
+        #    sum_f_comp = data_epoch['flux_'+self.measurement_id][~msk_target_id].sum()
+        #              
+        #    f_rel = f_target/sum_f_comp
+        #    
+        #              
+        #    #here we append the results           
+        #    df_dic['Image'].append(data_epoch)
+        #    
+            
+        #pass
+       
         
     def differential_photo(self,ignore=None,save=True):
         """
