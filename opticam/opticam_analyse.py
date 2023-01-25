@@ -68,7 +68,8 @@ class Analysis:
 
     def __init__(self,target_id, workdir=None,catalogue = None,name=None,rule = None, measurement_id='APER'):
         
-        self.target_id = target_id
+        self.target_id = target_id #this is the target id from the reference image and the catalogue file
+        self.df_phot = False #here we set the dataframe for the photometry to do checks in the methods later
 
         if workdir is None: 
             self.workdir = './'
@@ -129,7 +130,7 @@ class Analysis:
         
 
     def photo(self,select=None,ignore=None,save=True):
-       """
+        """
         Performs the differential photometry for a specific target.
 
         Parameters
@@ -161,48 +162,118 @@ class Analysis:
         self.data_phot =  data_phot
         
         
-        df_dic = {'flname':[],
-                  'filter':[],
-                  'ExpTime':[],
-                  'MJD':[],
-                  'AMass':[],
-                  'target':[],
-                  'comp':[],
-                 }
         
-        return data_phot
         
         #### Only in those that the target was also detected
         target_epochs = data_phot.loc[data_phot.id_apass == self.target_id, 'epoch']
         
-        for epoch in target_epochs:
+        df_dict = {'flname':[],
+                    'exptime':[],
+                    'MJD':[],
+                    'airmass':[],
+                    'epoch':[],
+                    'flux':[],
+                    #we will paste the errors after all the fluxes to keep the structure from Raul's IRAF code
+                  }
+        df_meta = { #filter and target name are written in the headers
+                   'target id': self.target_id,
+                   'N Compare': len(np.unique(data_phot.id_apass)) -1,
+                   'channel': self.marker[1:],
+                   'MeasType': self.measurement_id,
+                  }
+        print('Performing differential photometry')
+        print(f'N of comparison stars: {len(np.unique(data_phot.id_apass)) -1}')
+        #we are going to create an array for the errors to concatenate them later
+        EF_REL_C = np.zeros(([len(np.unique(data_phot.id_apass)) -1, len(target_epochs)])) #this is for the coparison stars
+        EF_REL = [] #this is for the target 
+                            
+        for i,epoch in enumerate(target_epochs):
+            #print(epoch) 
+            #we create the data and the masks we need 
             data_epoch = data_phot[data_phot.epoch == epoch]
-        #    
-        #    ###not implemented for selct and ignore ####control for the number of tagrets being the same
-        #    ###not implemented for selct and ignore ###if not len(data_epoch) == self.n_comp_stars:
-        #    ###not implemented for selct and ignore ###    print('ERROR: NUMBER OF DETECTED STARS DOES NOT MATCH')
-        #    
-        #    
-        #    #self.M = self.raw_data['mag_'+self.measurement_id]
-        #    #self.M_err = self.raw_data['mag_err_'+self.measurement_id]
-        #    #self.F = self.raw_data['flux_'+self.measurement_id]
-        #    #self.F_er = self.raw_data['flux_err_'+self.measurement_id]
-        #              
-        #    msk_target_id = data_epoch.id_apass == self.target_id
-        #    
-        #    #computing the actual flux of the target
-        #    f_target = data_epoch['flux_'+self.measurement_id][msk_target_id].array[0]
-        #    sum_f_comp = data_epoch['flux_'+self.measurement_id][~msk_target_id].sum()
-        #              
-        #    f_rel = f_target/sum_f_comp
-        #    
-        #              
-        #    #here we append the results           
-        #    df_dic['Image'].append(data_epoch)
-        #    
             
-        #pass
-       
+            msk_target_id = data_epoch.id_apass == self.target_id
+            
+            #we add some info to the dictionary
+            row_meta = data_epoch[msk_target_id]
+            df_dict['flname'].append(row_meta.flname.array[0].split('/')[-1])
+            df_dict['exptime'].append(row_meta.exptime.array[0])
+            df_dict['MJD'].append(row_meta.MJD.array[0])
+            df_dict['epoch'].append(row_meta.epoch.array[0])
+            df_dict['airmass'].append(row_meta.airmass.array[0])
+            
+            if i == 0: #we write the path to the folder in the first iteration
+                ll = len(row_meta.flname.array[0].split('/')[-1])+1
+                df_meta['data_folder']= row_meta.flname.array[0][:ll]
+                
+                        
+            
+            #computing the actual flux of the target
+            
+            f_target = data_epoch['flux_'+self.measurement_id][msk_target_id].array[0]
+            f_comp = data_epoch['flux_'+self.measurement_id][~msk_target_id]
+            sum_f_comp = f_comp.sum()
+            
+            f_rel = f_target/sum_f_comp
+        
+            ef_target = data_epoch['flux_err_'+self.measurement_id][msk_target_id].array[0]
+            ef_comp = data_epoch['flux_err_'+self.measurement_id][~msk_target_id]
+            
+            ef_rel = (ef_target/sum_f_comp) - np.sum(ef_target*ef_comp/sum_f_comp**2)
+            
+            #print(self.target_id,f_rel,ef_rel,'\n')
+            
+            #we save the flux in the dict and the error for later
+            df_dict['flux'].append(f_rel)
+            EF_REL.append(ef_rel)
+            
+            ### now we do the same excercise for comparison stars only
+            data_epoch_comp = data_epoch[~msk_target_id]
+            
+            for j,id_comp in enumerate(data_epoch_comp.id_apass):
+                #for the first iteration we create the dictionary fields
+                if i == 0:
+                    df_dict[f'flux_{j+1}']=[]
+                           
+                    df_meta[f'comp_id_{j+1}']=int(id_comp)
+                    pass
+                
+                msk_id = data_epoch_comp.id_apass == id_comp
+                
+                f = data_epoch_comp['flux_'+self.measurement_id][msk_id].array[0]
+                f_others = data_epoch_comp['flux_'+self.measurement_id][~msk_id]
+                sum_f_others = f_others.sum()
+                
+                f_rel_c = f/sum_f_others
+                
+                ef = data_epoch_comp['flux_err_'+self.measurement_id][msk_id].array[0]
+                ef_others = data_epoch_comp['flux_err_'+self.measurement_id][~msk_id]
+                
+                ef_rel_c = (ef/sum_f_others) - np.sum(ef* ef_others / sum_f_others**2)
+                
+                #print(id_comp,f_rel_c,ef_rel_c)
+                df_dict[f'flux_{j+1}'].append(f_rel_c)
+                EF_REL_C[j][i] = ef_rel_c
+            
+            #if i ==20: break
+            
+        #now we save the errors, for this we use the last data from the comparison stars
+        df_dict[f'eflux']=EF_REL #first we save the target flux
+        for j,id_comp in enumerate(data_epoch_comp.id_apass):
+            df_dict[f'eflux_{j+1}']=EF_REL_C[j][:]
+            
+        self.df_phot = df_dict
+        self.df_phot_meta = df_meta
+        
+        print('Done')
+    
+    def save_df_phot(path=None,csv=True,pkl=True,fits=True):
+        if isinstance(self.df_phot,bool):
+            print('Data fame has not been genereated \n
+                    please run photo() method to create the photometric data first')
+            return 
+        
+        if csv== True
         
     def differential_photo(self,ignore=None,save=True):
         """
@@ -220,6 +291,7 @@ class Analysis:
             Save the corrected photometric data for the target
 
         """
+        print("Warning: This function is now depreciated ") 
         mask = np.zeros(self.all_stars.size,dtype=bool)
         self.used = np.zeros(self.all_stars.size,dtype=bool)
         if target is not None:
