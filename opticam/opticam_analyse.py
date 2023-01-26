@@ -12,6 +12,7 @@ from itertools import permutations
 import pandas as pd
 #import os
 #import aplpy
+from astropy.table import Table
 from .misc import *
 
 #from astropy.time import Time
@@ -126,6 +127,9 @@ class Analysis:
         self.F_er = self.raw_data['flux_err_'+self.measurement_id]
         print("Num detected Stars: {}, \nAll Epochs: {}\n".format(self.n_ref_stars,self.epochs.size))
         print("Target id: {}, \nNum detected Epochs: {}, \nNum of valid comparison stars: {}".format(self.target_id,self.n_target.array[0],self.n_comp_stars))
+        
+        #other variables we use 
+        self.path_diff_phot = self.name+'_files/'+self.name+self.marker+'_diff_photo' 
         
         
 
@@ -262,18 +266,38 @@ class Analysis:
         for j,id_comp in enumerate(data_epoch_comp.id_apass):
             df_dict[f'eflux_{j+1}']=EF_REL_C[j][:]
             
-        self.df_phot = df_dict
+        self.df_phot = pd.DataFrame.from_dict(df_dict)
         self.df_phot_meta = df_meta
-        
+
         print('Done')
+        if save: 
+            self.save_df_phot()
+            print(f'file saved in {self.path_diff_phot}.xyz')
+
     
-    def save_df_phot(path=None,csv=True,pkl=True,fits=True):
+    def save_df_phot(self,path=None,csv=True,pkl=True,fits=True):
         if isinstance(self.df_phot,bool):
-            print('Data fame has not been genereated \n
-                    please run photo() method to create the photometric data first')
+            print('Data fame has not been genereated \n please run photo() method to create the photometric data first')
             return 
         
-        if csv== True
+        
+        if csv:
+            self.df_phot.to_csv(self.path_diff_phot+'.csv')
+        if pkl:
+            self.df_phot.to_pickle(self.path_diff_phot+'.pkl')
+            
+        #now we get the header from the other file
+        ref_t = Table.read(self.name+'_files/'+self.name+self.marker+'_photo.fits')
+        
+        save_t = Table.from_pandas(self.df_phot)
+        save_t.meta = self.df_phot_meta
+        
+        for key in ref_t.meta.keys():
+            save_t.meta[key] = ref_t.meta[key]
+        
+
+        if fits:
+            save_t.write(self.path_diff_phot+'.fits',overwrite=True)
         
     def differential_photo(self,ignore=None,save=True):
         """
